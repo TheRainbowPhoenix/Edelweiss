@@ -12,7 +12,6 @@ extern void (*ld_bdtors)(void), (*ld_edtors)(void);
 extern int main(void);
 extern void CASIOWIN_SetAPI(int API_version);
 
-__attribute__((section(".text.entry")))
 void start(void)
 {
     /* Clear the BSS section */

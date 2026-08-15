@@ -1,6 +1,6 @@
 OUTPUT_ARCH(sh3)
 OUTPUT_FORMAT(binary)
-ENTRY(relocate)
+ENTRY(_reloc_entry)
 
 MEMORY {
     /* MPM loads us at 8c700000, but we don't need a full 1 MiB of RAM.
@@ -10,7 +10,6 @@ MEMORY {
 
 SECTIONS {
     .text : {
-        *(.text.reloc)
         *(.text.entry)
 
         _ld_bctors = . ;
@@ -39,6 +38,6 @@ SECTIONS {
         _ld_ebss = . ;
     } > ram
 
-    _reloc = ORIGIN(ram);
-    _lword = ABSOLUTE(ALIGN(4) - ORIGIN(ram)) / 4;
+    _reloc_target = ORIGIN(ram);
+    _reloc_size32 = ABSOLUTE(ALIGN(32) - ORIGIN(ram)) / 32;
 }
