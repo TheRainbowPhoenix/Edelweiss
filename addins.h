@@ -32,15 +32,15 @@ void AddIn_load_metadata(struct AddIn *addin);
    this is a no-op. Draws the name as well, but does not clip it. */
 void AddIn_render_icon(struct AddIn const *addin, int x, int y, bool selected);
 
-/* Heap-allocated list of heap-allocated add-in structures. */
+/* Statically-allocated list of add-in structures. */
 struct AddInList {
     uint size;
     uint capacity;
-    struct AddIn **addins;
+    struct AddIn *addins;
 };
 
-/* Initialize a freshly-allocated AddInList structure. */
-void AddInList_init(struct AddInList *list, uint capacity);
+/* Initialize the list using the preallocated arrat */
+void AddInList_init(struct AddInList *list);
 /* Free the storage and reset the structure. The list must have been previously
    initialized by AddInList_init(). Keeps the add-in array capacity. */
 void AddInList_clear(struct AddInList *list);

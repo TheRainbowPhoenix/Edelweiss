@@ -360,7 +360,7 @@ int main(void)
     quit_current_app();
 
     struct AddInList addins;
-    AddInList_init(&addins, 256);
+    AddInList_init(&addins);
 
     int rc = 0;
     int update = true;
@@ -485,7 +485,6 @@ int main(void)
     }
 
     AddInList_clear(&addins);
-    CW_free(addins.addins);
 
     for(int i = 5; i < 10; i++)
         CW_Timer_Deinstall(i);

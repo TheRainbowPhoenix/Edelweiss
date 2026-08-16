@@ -82,26 +82,18 @@ void AddIn_render_icon(struct AddIn const *addin, int x, int y, bool selected)
 }
 
 
-void AddInList_init(struct AddInList *list, uint capacity)
+void AddInList_init(struct AddInList *list)
 {
-    uint bytes = capacity * sizeof *list->addins;
-    list->addins = CW_malloc(bytes);
-    if(list->addins) {
-        memset(list->addins, 0, bytes);
-        list->capacity = capacity;
-    }
-    else {
-        list->capacity = 0;
-    }
     list->size = 0;
+    list->capacity = ADDIN_SLAB_SIZE;
+    list->addins = slab_addins;
 }
 
 void AddInList_clear(struct AddInList *list)
 {
-    for(uint i = 0; i < list->size; i++) {
-        struct AddIn *addin = list->addins[i];
-        CW_free(addin->path);
-    }
+    for(uint i = 0; i < list->size; i++)
+        CW_free(list->addins[i].path);
+
     list->size = 0;
 }
 
@@ -112,7 +104,7 @@ int AddInList_size(struct AddInList *list)
 
 struct AddIn *AddInList_get(struct AddInList *list, int i)
 {
-    return ((uint)i < list->size) ? list->addins[i] : NULL;
+    return ((uint)i < list->size) ? &list->addins[i] : NULL;
 }
 
 struct AddIn *AddInList_extend(struct AddInList *list)
@@ -120,9 +112,8 @@ struct AddIn *AddInList_extend(struct AddInList *list)
     if(list->size >= list->capacity)
         return NULL;
 
-    struct AddIn *addin = &slab_addins[list->size];
+    struct AddIn *addin = &list->addins[list->size];
     memset(addin, 0, sizeof *addin);
-    list->addins[list->size] = addin;
     list->size++;
     return addin;
 }
