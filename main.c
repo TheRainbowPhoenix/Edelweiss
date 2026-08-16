@@ -249,6 +249,7 @@ static int load_addin(struct AddIn *addin, u32 *loadAddress, u32 fastload)
     }
 
     /* Map the entire range (why the heck not?!) */
+    // TODO: Only map the required number of pages
     for(int i = 0; i < 55; i++) {
         MMU_Map((void *)0x00300000 + (i << 16), romAddress + (i << 16),
                 0x10000, i);
@@ -268,7 +269,11 @@ static int load_addin(struct AddIn *addin, u32 *loadAddress, u32 fastload)
     /* Replace add-in entry with "rts; nop" */
     // *(u32 *)romAddress = 0x000b0009;
 
-    /* Invalidate caches; this also writes back reads to ROM load area */
+    /* Write back operand cache */
+    for(int offset = 0; offset < binary_size; offset += 32)
+        __asm__ volatile("ocbwb @%0" :: "r"(romAddress + offset));
+
+    /* Invalidate caches */
     u32 volatile *CCR = (void *)0xff00001c;
     *CCR |= (1 << 11) // Instruction Cache Invalidate
           + (1 << 3); // Operand Cache Invalidate
