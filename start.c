@@ -29,14 +29,17 @@ void start(void)
     int API_version = 0;
     u16 *CW_CurrentAppIndex = NULL;
 
-    if(!memcmp(version, "01.00", 5)) {
+    if(!memcmp(version, "01.00.0000", 10)) {
         API_version = 0;
     }
-    else if(!memcmp(version, "02.00", 5)) {
+    else if(!memcmp(version, "02.00.0000", 10)) {
         API_version = 1;
         CW_CurrentAppIndex = (void *)0x8c0afe28;
     }
-    else if(!memcmp(version, "02.10", 5)) {
+    else if(!memcmp(version, "02.00.0010", 10)) {
+        // TODO: Get our hands on a machine that runs 2.00.1
+    }
+    else if(!memcmp(version, "02.10.0000", 10)) {
         API_version = 2;
         CW_CurrentAppIndex = (void *)0x8c0b1308;
     }

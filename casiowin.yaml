@@ -16,7 +16,7 @@ functions:
   MMPrint:                      [ 0x80118a88, 0x8018c328, 0x801e4bec ]
   MMPrintRef:                   [ 0x80118980, 0x8018c220, 0x801e4ae4 ]
   DrawFrame:                    [ 0x80049ed4, 0x8007b024, 0x8007bf54 ]
-  MsgBoxPush:                   [ 0         , 0x8029a33c, 0x802fc7d0 ]
+  MsgBoxPush:                   [ 0x801d522c, 0x8029a33c, 0x802fc7d0 ]
 
   # Keyboard input
   GetKeyWait:                   [ 0x8017be56, 0x802382fe, 0x80299daa ]
@@ -33,7 +33,7 @@ functions:
   BFile_GetPos:                 [ 0x8024003c, 0x80333d7c, 0x803967e4 ]
   BFile_Write:                  [ 0x8024025e, 0x80333f9e, 0x80396a92 ]
   BFile_Read:                   [ 0x80240082, 0x80333dc2, 0x8039682a ]
-  BFile_Block:                  [ 0         , 0x80333cf2, 0x8039675a ]
+  BFile_Block:                  [ 0x8023ffb2, 0x80333cf2, 0x8039675a ]
   BFile_FindFirst:              [ 0x80240888, 0x803345c8, 0x80397030 ]
   BFile_FindNext:               [ 0x80240b06, 0x80334846, 0x803972ae ]
   BFile_FindClose:              [ 0x80240c10, 0x80334950, 0x803973b8 ]
@@ -51,12 +51,12 @@ functions:
   Timer_Deinstall:              [ 0x800b13d4, 0x8010def0, 0x8010f460 ]
 
   # USB
-  USB_PollRX:                   [ 0         , 0x8034da3e, 0x803b07c6 ]
-  USB_ClearRX:                  [ 0         , 0x8034da66, 0x803b07ee ]
-  USB_Open:                     [ 0         , 0x8023edac, 0x802a0860 ]
-  USB_ForceClose:               [ 0         , 0x8034ddd2, 0x803b0b5a ]
-  USB_Read:                     [ 0         , 0x8034da12, 0x803b079a ]
-  USB_Write:                    [ 0         , 0x8034d9d2, 0x803b075a ]
+  USB_PollRX:                   [ 0x80258cee, 0x8034da3e, 0x803b07c6 ]
+  USB_ClearRX:                  [ 0x80258d16, 0x8034da66, 0x803b07ee ]
+  USB_Open:                     [ 0x801825b0, 0x8023edac, 0x802a0860 ]
+  USB_ForceClose:               [ 0x80259082, 0x8034ddd2, 0x803b0b5a ]
+  USB_Read:                     [ 0x80258cc2, 0x8034da12, 0x803b079a ]
+  USB_Write:                    [ 0x80258c82, 0x8034d9d2, 0x803b075a ]
 
   # Misc functions
   BatteryIcon:                  [ 0x8023e31c, 0x8033207c, 0x80394ae4 ]

@@ -47,7 +47,7 @@ void CW_MMPrint(int x, int y, char const *str, int mode, int xmax,
 
 // v1:used v2:used
 void CW_DrawFrame(int color);
-// v1 v2:used
+// v1:used v2:used
 void CW_MsgBoxPush(int lines /* 1 to 6 */);
 
 //=== Keyboard ===============================================================//
@@ -224,24 +224,24 @@ int CW_Timer_Stop(int id);
 
 //=== USB ====================================================================//
 
-// v1 v2:used
+// v1:used v2:used
 int CW_USB_Open(short param);
-// v1 v2:used
+// v1:used v2:used
 int CW_USB_ForceClose(int one);
 
-// v1 v2:used
+// v1:used v2:used
 int CW_USB_Read(unsigned char *out, int sz, short *count);
-// v1 v2:used
+// v1:used v2:used
 int CW_USB_Write(const unsigned char *buf, int count);
 
-// v1 v2:used
+// v1:used v2:used
 int CW_USB_PollRX(void);
-// v1 v2:used
+// v1:used v2:used
 int CW_USB_ClearRX(void);
 
 //=== Internal functions =====================================================//
 
-// v1 v2
+// v1:used v2:used
 void CW_INTERNAL_USBPopup(void);
 
 #endif /* _CASIOWIN_H */
