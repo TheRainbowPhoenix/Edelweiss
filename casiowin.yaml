@@ -67,3 +67,4 @@ functions:
 
 variables:
   CurrentAppIndex:              [          0, 0x8c0afe28, 0x8c0b1308 ]
+  AppMemory:                    [ 0x8c160000, 0x8c160000, 0x8c160000 ]

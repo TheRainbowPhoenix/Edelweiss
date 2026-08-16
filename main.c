@@ -212,8 +212,22 @@ static int load_addin(struct AddIn *addin, u32 *loadAddress, u32 fastload)
     if(binary_size > 0x370000)
         return -1001;
 
-    void *romAddress = (void *)((0x8c7f0000 - binary_size) & -0x10000);
-    void *ramAddress = (void *)0x8c160000;
+    void *romAddress;
+    void *ramAddress;
+
+    /* Do we have a 512 kB memory buffer from the OS? */
+    void *osAppMemoryBuffer = CW_AppMemory();
+
+    if(osAppMemoryBuffer) {
+        /* If so, use it and push the ROM all the way to end of memory. */
+        romAddress = (void *)((0x8c7f0000 - binary_size) & -0x10000);
+        ramAddress = osAppMemoryBuffer;
+    }
+    else {
+        /* Otherwise, use the last 512 kB of memory */
+        romAddress = (void *)((0x8c770000 - binary_size) & -0x10000);
+        ramAddress = (void *)0x8c770000;
+    }
 
     if(loadAddress)
         *loadAddress = (u32)romAddress;
@@ -260,7 +274,7 @@ static int load_addin(struct AddIn *addin, u32 *loadAddress, u32 fastload)
           + (1 << 3); // Operand Cache Invalidate
     __asm__("icbi @%0":: "r"(0xa0000000));
 
-    return binary_size;
+    return 0;
 }
 
 #define MPM_VERSION_MAJOR 1
@@ -474,7 +488,7 @@ int main(void)
 
                 if(key == KEY_CTRL_FORMAT)
                     run = show_mapping(rc);
-                if(run)
+                if(run && rc == 0)
                     run_addin(loadAddress);
 
                 MMU_SetEnabled(false);

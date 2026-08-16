@@ -245,5 +245,7 @@ void CW_INTERNAL_USBPopup(void);
 
 // v1:todo v2:used
 CW_VAR(u16 *, CW_CurrentAppIndex)
+// v1:used v2:used
+CW_VAR(void *, CW_AppMemory)
 
 #endif /* _CASIOWIN_H */
