@@ -56,6 +56,8 @@ void CW_MMPrint(int x, int y, char const *str, int mode, int xmax,
 
 // v1:used v2:used
 void CW_DrawFrame(int color);
+// v1:todo v2:used
+void CW_DrawFrameC3(int color3);
 // v1:used v2:used
 void CW_MsgBoxPush(int lines /* 1 to 6 */);
 

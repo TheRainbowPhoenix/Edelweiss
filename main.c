@@ -492,7 +492,9 @@ int main(void)
                     run_addin(loadAddress);
 
                 MMU_SetEnabled(false);
-                CW_DrawFrame(0x0000);
+                CW_DrawFrameC3(0);
+
+                // TODO: Wait for all keys to be released!
                 update = run;
             }
         }
@@ -503,5 +505,6 @@ int main(void)
     for(int i = 5; i < 10; i++)
         CW_Timer_Deinstall(i);
 
+    CW_DrawFrameC3(0);
     return 0;
 }

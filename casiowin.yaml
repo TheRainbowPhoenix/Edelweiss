@@ -16,6 +16,7 @@ functions:
   MMPrint:                      [ 0x80118a88, 0x8018c328, 0x801e4bec ]
   MMPrintRef:                   [ 0x80118980, 0x8018c220, 0x801e4ae4 ]
   DrawFrame:                    [ 0x80049ed4, 0x8007b024, 0x8007bf54 ]
+  DrawFrameC3:                  [ 0x80049f1c, 0x8007b06c, 0x8007bf9c ]
   MsgBoxPush:                   [ 0x801d522c, 0x8029a33c, 0x802fc7d0 ]
 
   # Keyboard input
