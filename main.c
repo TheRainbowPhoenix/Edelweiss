@@ -283,7 +283,7 @@ static int load_addin(struct AddIn *addin, u32 *loadAddress, u32 fastload)
 }
 
 #define MPM_VERSION_MAJOR 1
-#define MPM_VERSION_MINOR 0
+#define MPM_VERSION_MINOR 1
 
 static void show_addin_details(struct AddIn *addin)
 {
