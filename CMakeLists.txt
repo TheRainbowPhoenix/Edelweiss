@@ -17,6 +17,7 @@ add_custom_command(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/casiowin.inc"
   COMMAND python "${CMAKE_CURRENT_SOURCE_DIR}/casiowin_gen.py"
                  "${CMAKE_CURRENT_SOURCE_DIR}/casiowin.yaml"
+                 "${CMAKE_CURRENT_BINARY_DIR}/casiowin-asm.inc"
                  "${CMAKE_CURRENT_BINARY_DIR}/casiowin.inc"
   DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/casiowin_gen.py"
           "${CMAKE_CURRENT_SOURCE_DIR}/casiowin.yaml")
@@ -36,6 +37,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/logo.c"
 add_executable(loader ${SOURCES})
 set_target_properties(loader PROPERTIES OUTPUT_NAME "mpm.bin")
 target_compile_options(loader PRIVATE -Wall -Wextra -Os -g -flto=auto)
+target_include_directories(loader PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_options(loader PRIVATE -T "${CMAKE_CURRENT_SOURCE_DIR}/loader-cg.x")
 
 # We link with what's likely a gint-oriented build of fxlibc, with no default

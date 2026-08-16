@@ -189,9 +189,12 @@ void MMUTests(void)
 
 static int read_from_usb(unsigned char *out, int sz)
 {
+    /* KEYSC register holding row #0, which is the AC key */
+    u16 volatile *KEYSC_KIUDATA0 = (void *)0xa44b0000;
+
     while (CW_USB_PollRX() == 0) {
         CW_OS_InnerWait_ms(25);
-        if (SH7305_IOKBD.row0 == 1) {
+        if (*KEYSC_KIUDATA0 == 1) {
             CW_USB_ForceClose(1);
             return -1;
         }
@@ -337,10 +340,24 @@ static void run_addin(u32 loadAddress)
     (void)rc;
 }
 
+static void quit_current_app(void)
+{
+    // TODO: Should better integrate with OS code to unload the current app,
+    // call exit handlers etc.
+
+    /* Invalidate the current OS app index to force initialization when
+       switching app in main menu. */
+    u16 *CurrentAppIndex = CW_CurrentAppIndex();
+    if(CurrentAppIndex)
+        *CurrentAppIndex = 0xffff;
+}
+
 int main(void)
 {
     u16 *VRAM = CW_GetVRAMAddress();
     char str[64];
+
+    quit_current_app();
 
     struct AddInList addins;
     AddInList_init(&addins, 256);
@@ -435,8 +452,9 @@ int main(void)
 
         u32 fastload = 0;
         if(key == KEY_CTRL_SETTINGS) {
-            CW_MsgBoxPush(1);
-            PrintMini(40, 96, "Initiating Add-in Push...", 0x0000);
+            CW_MsgBoxPush(2);
+            PrintMini(40, 72, "Receiving add-in over USB...", 0x0000);
+            PrintMini(40, 96, "AC: Cancel", 15 * 0x0841);
             CW_Bdisp_PutDisp_DD();
 
             while(CW_USB_Open(0x20) == 5);

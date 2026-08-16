@@ -5,12 +5,21 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "casiowin.inc"
+
 /* List of syscalls whose addresses are known on Math+ OS versions.
    Each one is annotated with tested/confidence level for some OS versions.
    - todo:      Address not known
    - likely:    Confident/likely guess
    - used:      The function was used successfully at least once
    - (nothing): Tested, officially supported */
+
+u32 CASIOWIN_Get(int index);
+
+/* Function that returns a CASIOWIN "variable". */
+#define CW_VAR(TYPE, NAME) \
+    static inline TYPE NAME() { return (TYPE)CASIOWIN_Get(CW_VARIABLE_##NAME); }
+
 
 //=== Dynamic allocation =====================================================//
 
@@ -57,16 +66,6 @@ int CW_GetKey(int *key);
 // v1:used v2:likely
 int CW_GetKeyWait(int *column, int *row, int wait_type, int timeout, int menu,
                   uint16_t *keycode);
-
-typedef volatile struct {
-    uint8_t row1, row0;
-    uint8_t row3, row2;
-    uint8_t row5, row4;
-    uint8_t row7, row6;
-    uint8_t row9, row8;
-} PACKED(2) SH7305_iokbd_t;
-
-#define SH7305_IOKBD (*((SH7305_iokbd_t *)0xa44b0000))
 
 #define KEY_CTRL_PREVTAB    30075
 #define KEY_CTRL_UP         30018
@@ -243,5 +242,8 @@ int CW_USB_ClearRX(void);
 
 // v1:used v2:used
 void CW_INTERNAL_USBPopup(void);
+
+// v1:todo v2:used
+CW_VAR(u16 *, CW_CurrentAppIndex)
 
 #endif /* _CASIOWIN_H */

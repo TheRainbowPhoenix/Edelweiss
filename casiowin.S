@@ -1,8 +1,21 @@
-/* Hardcoding build-cg is not elegant but I don't see where else we'd look. */
-#include "build-cg/casiowin.inc"
+#include "casiowin-asm.inc"
 
+.global _CASIOWIN_Get
 .global _CASIOWIN_SetAPI
 .global _CASIOWIN_GetAPI
+
+/* Return a variable by address. */
+_CASIOWIN_Get:
+    mov     #CASIOWIN_API_VERSIONS, r1
+    mulu.w  r4, r1
+    mov.l   .API, r0
+    mov.l   @r0, r2
+    sts     macl, r1
+    mov.l   .CASIOWIN_VARTABLE, r0
+    add     r2, r1
+    shll2   r1
+    rts
+    mov.l   @(r0, r1), r0
 
 /* Invoke a fixed function given by address.
    @r0: Internal function ID (from table in casiowin.inc) */
@@ -72,6 +85,7 @@ _CASIOWIN_GetAPI:
 .MMU_TransitionOff:     .long _MMU_TransitionOff
 .MMU_SetEnabled:        .long _MMU_SetEnabled
 .CASIOWIN_TABLE:        .long _CASIOWIN_TABLE
+.CASIOWIN_VARTABLE:     .long _CASIOWIN_VARTABLE
 
 .data
 .CASIOWIN_API:

@@ -64,3 +64,6 @@ functions:
 
   # Internal functions
   INTERNAL_USBPopup:            [ 0x800aba08, 0x800e7988, 0x800e8958 ]
+
+variables:
+  CurrentAppIndex:              [          0, 0x8c0afe28, 0x8c0b1308 ]
