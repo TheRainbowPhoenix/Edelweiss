@@ -5,6 +5,10 @@ Edelweiss is an embeddable stage-0 D01 loader for big-endian SH ELF programs
 adds an XD-A8500 loader, EBrew home screen, SDK, and Japanese/Chinese installation
 packages. The EX-word code is in `exword/`, `sdk/`, and `payloads/`.
 
+![EBrew host preview](docs/ebrew-preview.png)
+
+Host preview of the real EBrew C UI using Pillow text; this is not a device screenshot.
+
 **Experimental hardware build:** compilation and host checks are separate from
 device validation. This port uses a ROM32A-specific upper-RAM arena, inferred
 from the firmware layout rather than reserved through an OS allocator. It has

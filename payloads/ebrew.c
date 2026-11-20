@@ -63,7 +63,8 @@ static void header(void)
     label(166,37,ink,"Edelweiss Homebrew");
     label(166,57,0x6b4d,"Physical ELF runtime");
     label(166,77,0x6b4d,"Internal + SD slot 1 + SD slot 2");
-    label(166,97,blue,"Your programs, one home screen.");
+    label(166,97,error ? 0xf800 : blue,error ?
+        "Storage unavailable. Press R to rescan." : "Tap to select; tap again to launch.");
     box(12,122,504,53,0x8c51); box(14,124,500,49,0x18e3);
     label(57,134,white,"No programs found");
     label(57,152,0xbdd7,"Install .edl files inside an add-in's _CONTENT folder.");
@@ -108,8 +109,6 @@ static void draw(void)
     char n[12]; number(n,(unsigned)(total ? selected+1 : 0));
     label(426,304,white,n); label(453,304,white,"/");
     number(n,(unsigned)total); label(469,304,white,n);
-    if(error) label(16,278,0xf800,"Storage unavailable. Press R to rescan.");
-    else label(16,278,0x6b4d,"Tap to select; tap again to launch.");
     host->present();
 }
 int edl_main(const struct edl_api *api)

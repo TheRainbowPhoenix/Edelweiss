@@ -27,6 +27,12 @@ jobs:
             exword/fs.c exword/paths.c exword/elf.c tests/fs_test.c -o /tmp/test-fs
           /tmp/test-fs
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/check_edl.c -o /tmp/check-edl
+          python3 tools/generate_assets.py /tmp/edl-assets
+          cc -std=c11 -Wall -Wextra -Werror -Isdk -I/tmp/edl-assets \
+            payloads/ebrew.c /tmp/edl-assets/wallpaper.c tests/payload_test.c -o /tmp/test-payload
+          /tmp/test-payload 0
+          /tmp/test-payload 1
+          /tmp/test-payload 2
       - name: Install EX-word fxSDK
         shell: bash
         run: |
