@@ -60,6 +60,7 @@ static int load(void)
 int main(void)
 {
     fixture(); assert(!load());
+    fixture(); w32(808,0); w32(832,0); assert(!load()); /* GNU SH in-place addends. */
     fixture(); w32(828,0x202); w32(832,0); w32(136,0xa4050000-(BASE+8));
     struct edl_image image;
     assert(!edl_elf_load_at(read_file,NULL,sizeof file,BASE,BASE+4096,ACTUAL,write_memory,NULL,&image));
@@ -71,6 +72,9 @@ int main(void)
     for(unsigned i=0;i<sizeof offsets/sizeof *offsets;i++) {
         fixture(); w32(offsets[i],invalid[i]); assert(load()<0 && writes==0);
     }
+    fixture(); w32(80,0x200000); assert(load()<0 && writes==0);
+    fixture(); assert(edl_elf_load_at(read_file,NULL,sizeof file,BASE,BASE+4096,ACTUAL+2,
+        write_memory,NULL,&image)<0 && writes==0);
     fixture(); w16(48,0); assert(load()<0 && writes==0);
     fixture(); w32(416+20,0); assert(load()<0 && writes==0);
     fixture(); assert(edl_elf_load_at(read_file,NULL,sizeof file,BASE,BASE+4096,0xfffff800,

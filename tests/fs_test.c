@@ -65,5 +65,15 @@ int main(void)
     assert(!edl_join(path,"\\\\drv0","\x81\x5c"));
     assert(!edl_has_extension(".edl"));
     assert(edl_has_extension("main.EdL"));
+    char appid[7]; unsigned order[4];
+    assert(!edl_content_id("d0edelw",appid,order) && !strcmp(appid,"EDELW") && order[0]==0);
+    assert(!edl_content_id("c0exmpl",appid,order) && !strcmp(appid,"EXMPL") && order[0]==2);
+    assert(!edl_content_id("c1exmpl",appid,order) && !strcmp(appid,"EXMPL") && order[0]==3);
+    assert(!edl_content_id("c:edelw",appid,order) && order[0]==2);
+    const char full_id[8]={'c','1','A','B','C','D','E','F'};
+    assert(!edl_content_id(full_id,appid,order) && !strcmp(appid,"ABCDEF") && order[0]==3);
+    assert(edl_content_id("c1../xx",appid,order)<0 && order[0]==0);
+    assert(edl_content_id("c1",appid,order)<0 && order[0]==0);
+    assert(edl_content_id("z0edelw",appid,order)<0);
     puts("Filesystem discovery, optional crd1, pagination and handle checks passed");
 }

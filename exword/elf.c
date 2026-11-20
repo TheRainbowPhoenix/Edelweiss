@@ -160,9 +160,12 @@ static int relocation_marker(struct relocation *r,const unsigned char h[52])
     }
     return found==1 ? 0 : -1;
 }
-/* First pass validates every relocation without writing. For SHT_RELA the
-   final linked word must agree with S+A (or S+A-P); no heuristic pointer scan.
-   Non-allocated metadata/debug relocations are deliberately ignored. */
+/* First pass validates every relocation without writing. GNU SH uses
+   partial-in-place addends even in SHT_RELA. This is ET_EXEC, so the stored
+   word is already fully linked: adjust it by the movement of S and P, never
+   recompute S+A or guess pointers by scanning memory. See binutils bfd/elf32-sh.c
+   get_howto_table(...)[R_SH_DIR32].partial_inplace. Metadata/debug relocations
+   target non-allocated sections and are deliberately ignored. */
 static int relocate(struct relocation *r,int apply)
 {
     unsigned char s[40],target[40],symbols[40],sym[16],def[40],rel[12],word[4];
@@ -199,10 +202,9 @@ static int relocate(struct relocation *r,int apply)
                 moves=1;
             }
             uint32_t value=u32(word);
-            if(type==4) {
-                uint32_t expected=u32(sym+4)+u32(rel+8);
-                if(kind==2) expected-=address;
-                if(value!=expected) return -1;
+            if(moves) {
+                uint32_t destination=kind==1 ? value : value+address;
+                if(destination<r->base || destination>r->end) return -1;
             }
             /* REL32's place moves too; internal PC-relative references do
                not change, references to fixed absolute symbols do. */
@@ -229,6 +231,12 @@ int edl_elf_load_at(edl_read_fn read,void *rctx,uint32_t size,
     struct edl_image image;
     unsigned char h[52];
     if(edl_elf_inspect(read,rctx,size,start,end,&image) || read(rctx,0,h,sizeof h)) return -1;
+    for(unsigned i=0;i<u16(h+44);i++) {
+        unsigned char ph[32];
+        if(read(rctx,u32(h+28)+i*32u,ph,sizeof ph)) return -1;
+        uint32_t align=u32(ph+28);
+        if(u32(ph)==1 && align>1 && ((actual-start)&(align-1))) return -1;
+    }
     struct relocation r={read,rctx,size,start,end,actual-start,u32(h+32),u16(h+48),
         &image,write,wctx};
     if(relocation_marker(&r,h) || relocate(&r,0)) return -1;

@@ -165,19 +165,10 @@ int edl_boot_path(char out[EDL_PATH_MAX])
        Older colon-prefixed IDs are also accepted. Other firmware can fall back to
        locating the configured package ID, including on optional crd1. */
     char appid[7]={0};
-    size_t n=0;
-    if(id[0]=='d' || id[0]=='c') {
-        while(n<6 && id[n+2]) { appid[n]=id[n+2]; n++; }
-        for(size_t i=0;i<n;i++) if(appid[i]>='a' && appid[i]<='z') appid[i]-=32;
-    }
-    if(!n) memcpy(appid,EDL_APPID,sizeof EDL_APPID);
+    unsigned order[4];
+    if(edl_content_id(id,appid,order)) memcpy(appid,EDL_APPID,sizeof EDL_APPID);
     const char *roots[4]={"\\\\drv0","\\\\drv0\\CASIO",
         "\\\\crd0\\CASIO","\\\\crd1\\CASIO"};
-    unsigned order[4]={0,1,2,3};
-    if(id[0]=='c') {
-        order[0]=id[1]=='1' ? 3 : 2; order[1]=id[1]=='1' ? 2 : 3;
-        order[2]=0; order[3]=1;
-    }
     for(unsigned i=0;i<4;i++) {
         char app[EDL_PATH_MAX],content[EDL_PATH_MAX];
         if(edl_join(app,roots[order[i]],appid) || edl_join(content,app,"_CONTENT")) continue;

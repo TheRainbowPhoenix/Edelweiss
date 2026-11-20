@@ -6,6 +6,7 @@
 extern const struct edl_firmware *edl_current;
 
 int edl_join(char out[EDL_PATH_MAX], const char *parent, const char *name);
+int edl_content_id(const char id[8],char appid[7],unsigned order[4]);
 int edl_has_extension(const char *name);
 int edl_scan(unsigned first, struct edl_record *rows, unsigned capacity);
 int edl_read(const char *path, uint32_t offset, void *dst, uint32_t size);
