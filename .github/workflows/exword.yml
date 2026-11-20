@@ -1,0 +1,95 @@
+name: EX-word Edelweiss
+on:
+  push:
+    branches: [edelweiss]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: edelweiss-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/therainbowphoenix/gint-docker:main
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check ELF parser, loading and filesystem discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/elf_test.c -o /tmp/test-elf
+          /tmp/test-elf
+          cc -std=c11 -Wall -Wextra -Werror -Itests/mock \
+            '-DEDL_APPID="EDELW"' -DEDL_ARENA_START=0x8c700000 -DEDL_ARENA_END=0x8c7f0000 \
+            exword/fs.c exword/paths.c exword/elf.c tests/fs_test.c -o /tmp/test-fs
+          /tmp/test-fs
+          cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/check_edl.c -o /tmp/check-edl
+      - name: Install EX-word fxSDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 --branch fix/exword-data-load-alignment \
+            https://github.com/TheRainbowPhoenix/fxsdk-exword.git /tmp/fxsdk-src
+          cmake -S /tmp/fxsdk-src -B /tmp/fxsdk-build \
+            -DCMAKE_INSTALL_PREFIX=/tmp/fxsdk-exword \
+            -DFXLINK_DISABLE_SDL2=ON -DFXLINK_DISABLE_UDISKS2=ON
+          cmake --build /tmp/fxsdk-build --parallel 2
+          cmake --install /tmp/fxsdk-build
+          git clone --depth=1 https://github.com/brijohn/elf2d01.git /tmp/elf2d01
+          cc -O2 /tmp/elf2d01/elf2d01.c -o /tmp/fxsdk-exword/bin/elf2d01
+          echo /tmp/fxsdk-exword/bin >> "$GITHUB_PATH"
+      - name: Install EX-word gint runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 --branch feature/exword-runtime-bridge \
+            https://github.com/TheRainbowPhoenix/gint-exword.git /tmp/gint-src
+          cmake -S /tmp/gint-src -B /tmp/gint-build \
+            -DCMAKE_TOOLCHAIN_FILE=/tmp/fxsdk-exword/lib/cmake/fxsdk/EXWORD.cmake \
+            -DCMAKE_INSTALL_PREFIX=/tmp/gint-exword \
+            -DCMAKE_MODULE_PATH=/tmp/fxsdk-exword/lib/cmake/fxsdk
+          cmake --build /tmp/gint-build --parallel 2
+          cmake --install /tmp/gint-build
+      - name: Build stage 0, ELF programs and JP/CN packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/TheRainbowPhoenix/exword-xd-a8500-TEST.git /tmp/exword-metadata
+          cmake -S . -B build-exword \
+            -DCMAKE_TOOLCHAIN_FILE=/tmp/fxsdk-exword/lib/cmake/fxsdk/EXWORD.cmake \
+            -DCMAKE_PREFIX_PATH=/tmp/gint-exword \
+            '-DCMAKE_MODULE_PATH=/tmp/gint-exword/lib/cmake/fxsdk;/tmp/fxsdk-exword/lib/cmake/fxsdk' \
+            -DEXWORD_METADATA_SOURCE=/tmp/exword-metadata
+          cmake --build build-exword --parallel 2
+          /tmp/check-edl build-exword/EBrew.edl build-exword/large-demo.edl
+          python3 tools/check_packages.py build-exword
+          sh-elf-objdump -d --disassemble=_edl_invoke build-exword/edelweiss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Edelweiss-ja
+          path: build-exword/packages/ja/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Edelweiss-cn
+          path: build-exword/packages/cn/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Edelweiss-SDK
+          path: |
+            sdk/
+            docs/EDL-ABI.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Edelweiss-debug
+          path: |
+            build-exword/edelweiss
+            build-exword/*.edl
+            build-exword/exword/*.map
+            build-exword/exword/edl.ld
+          if-no-files-found: warn

@@ -1,3 +1,10 @@
+# The original Math+ loader remains available with the CG toolchain.
+cmake_minimum_required(VERSION 3.15)
+if(FXSDK_PLATFORM_LONG STREQUAL "exword")
+  project(EdelweissExword VERSION 0.2 LANGUAGES C ASM)
+  add_subdirectory(exword)
+  return()
+endif()
 # fxSDK project, build with `fxsdk build-cg` to use the right toolchain.
 cmake_minimum_required(VERSION 3.15)
 project(MpmLoader LANGUAGES C ASM)
@@ -47,3 +54,4 @@ target_link_libraries(loader -lc)
 add_custom_command(TARGET loader POST_BUILD
   COMMAND echo -ne '\\x1b[36;1mmpm.bin size: \\x1b[0m'
   COMMAND stat -c %s "${CMAKE_CURRENT_BINARY_DIR}/mpm.bin")
+

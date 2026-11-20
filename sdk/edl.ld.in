@@ -1,0 +1,32 @@
+OUTPUT_ARCH(sh4)
+OUTPUT_FORMAT(elf32-sh)
+ENTRY(_edl_entry)
+MEMORY { payload (rwx) : ORIGIN = @EDL_ARENA_START@, LENGTH = @EDL_ARENA_SIZE@ }
+PHDRS { text PT_LOAD FLAGS(5); data PT_LOAD FLAGS(6); }
+SECTIONS {
+    .text : {
+        KEEP(*(.text.edl_entry))
+        *(.text .text.*)
+        . = ALIGN(4);
+        _edl_ctors_start = .;
+        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*))) KEEP(*(.init_array .ctors .ctors.*))
+        _edl_ctors_end = .;
+        _edl_dtors_start = .;
+        KEEP(*(SORT_BY_INIT_PRIORITY(.fini_array.*))) KEEP(*(.fini_array .dtors .dtors.*))
+        _edl_dtors_end = .;
+        *(.rodata .rodata.*)
+        . = ALIGN(32);
+    } > payload :text
+    .data : {
+        *(.data .data.* .got .got.*)
+        . = ALIGN(32);
+    } > payload :data
+    .bss (NOLOAD) : {
+        *(.bss .bss.* COMMON)
+        . = ALIGN(32);
+    } > payload :data
+    _edl_end = .;
+    .edl.meta 0 (INFO) : { KEEP(*(.edl.meta)) } :NONE
+    /DISCARD/ : { *(.comment .note* .eh_frame* .gnu.attributes) }
+    ASSERT(_edl_end <= ORIGIN(payload)+LENGTH(payload), "EDL payload exceeds backing arena")
+}
