@@ -73,7 +73,8 @@ int main(void)
     const char full_id[8]={'c','1','A','B','C','D','E','F'};
     assert(!edl_content_id(full_id,appid,order) && !strcmp(appid,"ABCDEF") && order[0]==3);
     assert(edl_content_id("c1../xx",appid,order)<0 && order[0]==0);
-    assert(edl_content_id("c1",appid,order)<0 && order[0]==0);
+    const char empty_id[8]="c1";
+    assert(edl_content_id(empty_id,appid,order)<0 && order[0]==0);
     assert(edl_content_id("z0edelw",appid,order)<0);
     puts("Filesystem discovery, optional crd1, pagination and handle checks passed");
 }
