@@ -24,12 +24,14 @@ generate_d01(TARGET edelweiss OUTPUT "${CMAKE_BINARY_DIR}/edelweiss.d01" MODULE 
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/ebrew_assets.h"
   "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c"
+  "${CMAKE_CURRENT_BINARY_DIR}/assets/splash.c"
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../tools/generate_assets.py"
     "${CMAKE_CURRENT_BINARY_DIR}/assets"
-  DEPENDS ../tools/generate_assets.py VERBATIM)
+  DEPENDS ../tools/generate_assets.py ../assets/CASIO_EX.bmp VERBATIM)
 add_custom_target(edl_assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/assets/ebrew_assets.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c")
-add_edl(EBrew ../payloads/ebrew.c "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c")
+  "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c" "${CMAKE_CURRENT_BINARY_DIR}/assets/splash.c")
+add_edl(EBrew ../payloads/ebrew.c ../payloads/calendar.c ../payloads/splash.c
+  "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c" "${CMAKE_CURRENT_BINARY_DIR}/assets/splash.c")
 add_edl(large-demo ../payloads/demo.c "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c")
 foreach(PAYLOAD IN ITEMS EBrew large-demo)
   target_include_directories(${PAYLOAD} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/assets")

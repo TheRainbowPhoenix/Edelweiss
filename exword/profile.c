@@ -1,5 +1,6 @@
 #include "host.h"
 #include <string.h>
+#include <gint/gint.h>
 
 /* ROM32A.BIN/XD-A8500. Different packaging languages do not select a
    different firmware memory profile. Unknown firmware fails before RAM writes.
@@ -27,4 +28,17 @@ void edl_sync_code(void)
     for(uint32_t p=EDL_ARENA_START;p<EDL_ARENA_END;p+=32)
         __asm__ volatile("icbi @%0" :: "r"(p) : "memory");
     __asm__ volatile("synco" ::: "memory");
+}
+
+static int battery_native(void)
+{
+    /* ROM32A Power_IsBatteryAboveLowThreshold: two ADC samples, using the
+       firmware's threshold for the current backlight/battery configuration. */
+    int (*above_low)(void)=(void *)0x80025514;
+    int rc=above_low();
+    return rc==0 || rc==1 ? rc : -1;
+}
+int edl_battery_state(void)
+{
+    return gint_world_switch(GINT_CALL(battery_native));
 }

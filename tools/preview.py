@@ -19,6 +19,10 @@ class Metadata(C.Structure):
                 ('title', C.c_char*32), ('description', C.c_char*64),
                 ('icon', C.c_uint16*1024)]
 
+class Status(C.Structure):
+    _fields_=[('year',C.c_uint16)]+[(n,C.c_uint8) for n in
+        ('month','day','hours','minutes','seconds')]+[('battery',C.c_int8)]
+
 Rect = C.CFUNCTYPE(None, C.c_int, C.c_int, C.c_int, C.c_int, C.c_uint16)
 Text = C.CFUNCTYPE(None, C.c_int, C.c_int, C.c_uint16, C.c_char_p)
 Blit = C.CFUNCTYPE(None, C.c_int, C.c_int, C.c_int, C.c_int, C.POINTER(C.c_uint16))
@@ -29,6 +33,8 @@ Meta = C.CFUNCTYPE(C.c_int, C.c_char_p, C.POINTER(Metadata))
 Read = C.CFUNCTYPE(C.c_int, C.c_char_p, C.c_uint32, C.c_void_p, C.c_uint32)
 Call = C.CFUNCTYPE(C.c_int, *([C.c_uint32]*5))
 Launch = C.CFUNCTYPE(C.c_int, C.c_char_p)
+GetStatus = C.CFUNCTYPE(C.c_int, C.POINTER(Status))
+WaitTimeout = C.CFUNCTYPE(C.c_int, C.POINTER(Event), C.c_uint)
 
 class API(C.Structure):
     _fields_ = [(n, C.c_uint32) for n in ('magic','version','size','width','height')]+[
@@ -36,7 +42,8 @@ class API(C.Structure):
         ('rect', Rect), ('text', Text), ('blit', Blit), ('present', Present),
         ('wait', Wait), ('scan', Scan), ('metadata', Meta), ('read', Read),
         ('os_call', Call), ('launch', Launch),
-    ] + [(n, C.c_uint32) for n in ('arena_start','arena_end','stack_start','stack_end')]
+    ] + [(n, C.c_uint32) for n in ('arena_start','arena_end','stack_start','stack_end')]+[
+        ('status',GetStatus),('wait_timeout',WaitTimeout)]
 
 library = C.CDLL(str(Path(sys.argv[1]).resolve()))
 output = Path(sys.argv[2]); output.parent.mkdir(parents=True, exist_ok=True)
@@ -57,11 +64,21 @@ def blit(x,y,w,h,data):
     canvas.paste(image,(x,y))
 @Present
 def present():
+    if not getattr(present,'shown',False):
+        canvas.save(output.with_name(output.stem+'-splash.png'))
+        present.shown=True
     canvas.save(output)
 @Wait
 def wait(e):
     e[0]=Event(9,0,0)  # EDL_HOME
     return 0
+@GetStatus
+def get_status(out):
+    out[0]=Status(2026,11,20,23,43,34,1)
+    return 0
+@WaitTimeout
+def wait_timeout(e,ms):
+    return wait(e)
 
 names = ['EBrew','Large ELF demo','Embedded example']
 paths = [f'\\\\drv0\\EDELW\\_CONTENT\\{n}.edl'.encode() for n in ('EBrew','large-demo','main')]
@@ -91,7 +108,13 @@ def metadata(path,out):
 
 api=API(magic=0x45444c31,version=1,size=C.sizeof(API),width=528,height=320,
         image_path=paths[0],rect=rect,text=text,blit=blit,present=present,
-        wait=wait,scan=scan,metadata=metadata)
+        wait=wait,scan=scan,metadata=metadata,status=get_status,wait_timeout=wait_timeout)
 library.edl_main.argtypes=[C.POINTER(API)]
 assert library.edl_main(C.byref(api))==0
+# Check the actual C decoder's displayed pixels against the original BMP.
+source=Path(__file__).resolve().parents[1]/'assets'/'CASIO_EX.bmp'
+expected=Image.open(source).convert('RGB')
+quantized=[rgb(((r>>3)<<11)|((g>>2)<<5)|(b>>3)) for r,g,b in expected.getdata()]
+shown=Image.open(output.with_name(output.stem+'-splash.png')).convert('RGB')
+assert list(shown.getdata())==quantized
 print(output)

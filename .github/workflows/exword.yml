@@ -28,11 +28,20 @@ jobs:
           /tmp/test-fs
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/check_edl.c -o /tmp/check-edl
           python3 tools/generate_assets.py /tmp/edl-assets
+          python3 tests/assets_test.py
+          cc -std=c11 -Wall -Wextra -Werror payloads/calendar.c tests/calendar_test.c -o /tmp/test-calendar
+          /tmp/test-calendar
           cc -std=c11 -Wall -Wextra -Werror -Isdk -I/tmp/edl-assets \
-            payloads/ebrew.c /tmp/edl-assets/wallpaper.c tests/payload_test.c -o /tmp/test-payload
+            payloads/ebrew.c payloads/calendar.c payloads/splash.c \
+            /tmp/edl-assets/wallpaper.c /tmp/edl-assets/splash.c tests/payload_test.c -o /tmp/test-payload
           /tmp/test-payload 0
           /tmp/test-payload 1
           /tmp/test-payload 2
+          /tmp/test-payload 3
+          cc -std=c11 -shared -fPIC -Os -Isdk -I/tmp/edl-assets \
+            payloads/ebrew.c payloads/calendar.c payloads/splash.c \
+            /tmp/edl-assets/wallpaper.c /tmp/edl-assets/splash.c -o /tmp/ebrew-preview.so
+          python3 tools/preview.py /tmp/ebrew-preview.so build-preview/ebrew.png
       - name: Install EX-word fxSDK
         shell: bash
         run: |
@@ -89,6 +98,11 @@ jobs:
           path: |
             sdk/
             docs/EDL-ABI.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EBrew-preview
+          path: build-preview/*.png
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:

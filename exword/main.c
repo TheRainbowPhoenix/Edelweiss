@@ -3,6 +3,7 @@
 #include <gint/keyboard.h>
 #include <gint/drivers/touch.h>
 #include <gint/gint.h>
+#include <gint/rtc.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -25,11 +26,19 @@ static void blit(int x,int y,int w,int h,const uint16_t *pixels)
         memcpy(vram+(y+row)*DWIDTH+x,pixels+row*w,(size_t)w*2);
 }
 static void present(void) { dupdate(); }
-static int wait_event(struct edl_event *out)
+static int wait_timeout(struct edl_event *out,unsigned timeout_ms)
 {
+    if(timeout_ms>60000) timeout_ms=60000;
+    uint32_t start=timeout_ms ? rtc_ticks() : 0;
+    uint32_t ticks=(timeout_ms*128u+999u)/1000u;
     for(;;) {
-        key_event_t e=waitevent(NULL);
+        key_event_t e=pollevent();
         *out=(struct edl_event){0};
+        if(timeout_ms) {
+            uint32_t now=rtc_ticks();
+            uint32_t elapsed=now>=start ? now-start : 128u*86400u-start+now;
+            if(elapsed>=ticks && e.type==KEYEV_NONE) return 0;
+        }
         if(e.type==KEYEV_TOUCH_DOWN) {
             out->key=EDL_TOUCH; out->x=e.x; out->y=e.y; return 0;
         }
@@ -47,6 +56,28 @@ static int wait_event(struct edl_event *out)
         }
         return 0;
     }
+}
+static int wait_event(struct edl_event *out) { return wait_timeout(out,0); }
+
+static int status(struct edl_status *out)
+{
+    static int battery=-1;
+    static uint32_t sampled=UINT32_MAX;
+    rtc_time_t t;
+    rtc_get_time(&t);
+    /* gint's implementation returns the hardware RMONCNT value (1..12). */
+    *out=(struct edl_status){.year=t.year,.month=t.month,.day=t.month_day,
+        .hours=t.hours,.minutes=t.minutes,.seconds=t.seconds,.battery=-1};
+    if(t.year<1900 || t.year>9999 || t.month<1 || t.month>12 ||
+        t.month_day<1 || t.month_day>31 || t.hours>23 || t.minutes>59 || t.seconds>59)
+        return -1;
+    uint32_t now=t.hours*3600u+t.minutes*60u+t.seconds;
+    if(sampled==UINT32_MAX || now<sampled || now-sampled>=30) {
+        battery=edl_battery_state();
+        sampled=now;
+    }
+    out->battery=(int8_t)battery;
+    return 0;
 }
 static int request_launch(const char *path)
 {
@@ -76,6 +107,7 @@ static struct edl_api api={
     .os_call=edl_os_call,.launch=request_launch,
     .arena_start=EDL_ARENA_START,.arena_end=EDL_ARENA_END,
     .stack_start=0x8c7f8000,.stack_end=0x8c800000,
+    .status=status,.wait_timeout=wait_timeout,
 };
 
 int main(void)

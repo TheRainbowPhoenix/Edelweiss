@@ -15,4 +15,5 @@ int edl_invoke(uint32_t entry,const struct edl_api *api,uint32_t stack);
 int edl_boot_path(char out[EDL_PATH_MAX]);
 int edl_profile_supported(void);
 void edl_sync_code(void);
+int edl_battery_state(void);
 #endif

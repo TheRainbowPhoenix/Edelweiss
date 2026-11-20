@@ -14,6 +14,11 @@
 enum edl_key { EDL_UP=1, EDL_DOWN, EDL_LEFT, EDL_RIGHT, EDL_OK,
     EDL_BACK, EDL_REFRESH, EDL_TOUCH, EDL_HOME };
 struct edl_event { int key, x, y; };
+struct edl_status {
+    uint16_t year;
+    uint8_t month, day, hours, minutes, seconds; /* month is 1..12 */
+    int8_t battery; /* -1 unknown, 0 low, 1 normal; not a percentage */
+};
 struct edl_record { char path[EDL_PATH_MAX]; char title[EDL_TITLE_MAX]; };
 /* Serialized big-endian in a non-allocated .edl.meta ELF section. */
 struct edl_metadata {
@@ -46,6 +51,10 @@ struct edl_api {
        a backing arena. The old payload is fully unwound before replacement. */
     int (*launch)(const char *path);
     uint32_t arena_start, arena_end, stack_start, stack_end;
+    /* Append-only ABI extension; the original v1 prefix remains compatible. */
+    int (*status)(struct edl_status *out);
+    /* timeout_ms=0 waits indefinitely. Expiration returns key=0, not a keypress. */
+    int (*wait_timeout)(struct edl_event *event, unsigned timeout_ms);
 };
 
 int edl_main(const struct edl_api *api);
