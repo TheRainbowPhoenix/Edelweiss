@@ -26,6 +26,7 @@ SECTIONS {
         . = ALIGN(32);
     } > payload :data
     _edl_end = .;
+    .edl.reloc 0 (INFO) : { LONG(0x45445231); LONG(ORIGIN(payload)); LONG(LENGTH(payload)); } :NONE
     .edl.meta 0 (INFO) : { KEEP(*(.edl.meta)) } :NONE
     /DISCARD/ : { *(.comment .note* .eh_frame* .gnu.attributes) }
     ASSERT(_edl_end <= ORIGIN(payload)+LENGTH(payload), "EDL payload exceeds backing arena")

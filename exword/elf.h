@@ -29,4 +29,9 @@ typedef int (*edl_write_fn)(void *context, uint32_t address,
 int edl_elf_load(edl_read_fn read, void *read_context, uint32_t file_size,
     uint32_t start, uint32_t end, edl_write_fn write, void *write_context,
     struct edl_image *image);
+/* SDK --emit-relocs ELFs can move as a whole between firmware arenas.
+   Old fixed ELFs remain usable only at their original address. */
+int edl_elf_load_at(edl_read_fn read, void *read_context, uint32_t file_size,
+    uint32_t link_start, uint32_t link_end, uint32_t actual_start,
+    edl_write_fn write, void *write_context, struct edl_image *image);
 #endif

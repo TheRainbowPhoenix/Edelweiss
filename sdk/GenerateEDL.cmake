@@ -14,7 +14,7 @@ function(add_edl TARGET)
     -fno-stack-protector -ffreestanding -fno-builtin -ffunction-sections -fdata-sections)
   target_link_options(${TARGET} PRIVATE -nostdlib -no-pie
     "-Wl,-T,${CMAKE_CURRENT_BINARY_DIR}/edl.ld" -Wl,--gc-sections
-    -Wl,--build-id=none "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.map")
+    -Wl,--emit-relocs -Wl,--build-id=none "-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.map")
   target_link_libraries(${TARGET} PRIVATE gcc)
   set_property(TARGET ${TARGET} APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/edl.ld")
 endfunction()

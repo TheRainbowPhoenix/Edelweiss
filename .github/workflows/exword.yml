@@ -22,6 +22,10 @@ jobs:
           set -euo pipefail
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/elf_test.c -o /tmp/test-elf
           /tmp/test-elf
+          cc -std=c11 -Wall -Wextra -Werror exword/firmware.c tests/firmware_test.c -o /tmp/test-firmware
+          /tmp/test-firmware
+          cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/relocation_test.c -o /tmp/test-relocation
+          /tmp/test-relocation
           cc -std=c11 -Wall -Wextra -Werror -Itests/mock \
             '-DEDL_APPID="EDELW"' -DEDL_ARENA_START=0x8c700000 -DEDL_ARENA_END=0x8c7f0000 \
             exword/fs.c exword/paths.c exword/elf.c tests/fs_test.c -o /tmp/test-fs
@@ -79,6 +83,7 @@ jobs:
             '-DCMAKE_MODULE_PATH=/tmp/gint-exword/lib/cmake/fxsdk;/tmp/fxsdk-exword/lib/cmake/fxsdk' \
             -DEXWORD_METADATA_SOURCE=/tmp/exword-metadata
           cmake --build build-exword --parallel 2
+          sh-elf-readelf -r build-exword/EBrew.edl | head -60 || true
           /tmp/check-edl build-exword/EBrew.edl build-exword/large-demo.edl
           python3 tools/check_packages.py build-exword
           sh-elf-objdump -d --disassemble=_edl_invoke build-exword/edelweiss

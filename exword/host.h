@@ -2,6 +2,8 @@
 #define EDELWEISS_HOST_H
 #include "../sdk/edl.h"
 #include "elf.h"
+#include "firmware.h"
+extern const struct edl_firmware *edl_current;
 
 int edl_join(char out[EDL_PATH_MAX], const char *parent, const char *name);
 int edl_has_extension(const char *name);
@@ -13,7 +15,8 @@ int edl_os_call(uint32_t id,uint32_t a,uint32_t b,uint32_t c,uint32_t d);
 int edl_native_dispatch(uint32_t id,uint32_t a,uint32_t b,uint32_t c,uint32_t d);
 int edl_invoke(uint32_t entry,const struct edl_api *api,uint32_t stack);
 int edl_boot_path(char out[EDL_PATH_MAX]);
-int edl_profile_supported(void);
+int edl_profile_init(void);
+void edl_profile_release(void);
 void edl_sync_code(void);
 int edl_battery_state(void);
 #endif

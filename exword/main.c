@@ -94,7 +94,8 @@ static void message(const char *title,const char *detail,int rc)
     dtext(20,20,C_BLACK,title);
     dtext(20,50,C_BLACK,detail);
     dprint(20,80,C_BLACK,"Result %d   ELF arena %08x..%08x",rc,
-        (unsigned)EDL_ARENA_START,(unsigned)EDL_ARENA_END);
+        (unsigned)(edl_current ? edl_current->arena_start : 0),
+        (unsigned)(edl_current ? edl_current->arena_end : 0));
     dtext(20,110,C_BLACK,"Press a key to continue.");
     dupdate();
     struct edl_event e; wait_event(&e);
@@ -105,22 +106,30 @@ static struct edl_api api={
     .rect=rect,.text=text,.blit=blit,.present=present,.wait=wait_event,
     .scan=edl_scan,.metadata=edl_metadata,.read=edl_read,
     .os_call=edl_os_call,.launch=request_launch,
-    .arena_start=EDL_ARENA_START,.arena_end=EDL_ARENA_END,
-    .stack_start=0x8c7f8000,.stack_end=0x8c800000,
     .status=status,.wait_timeout=wait_timeout,
 };
 
 int main(void)
 {
-    if(!edl_profile_supported()) {
-        message("Edelweiss: unsupported firmware",
-            "This build requires XD-A8500 ROM32A.", -10);
+    int profile_rc=edl_profile_init();
+    if(profile_rc) {
+        message(profile_rc==-10 ? "Edelweiss: unsupported firmware" :
+            "Edelweiss: RAM check failed",
+            profile_rc==-10 ? "Known ROMs: XD-A8500 and XD-D6600 CY436." :
+            "Extended payload RAM is occupied or mirrored.",profile_rc);
+        touch_exword_quit();
         return -2;
     }
+    api.arena_start=edl_current->arena_start;
+    api.arena_end=edl_current->arena_end;
+    api.stack_start=edl_current->stack_start;
+    api.stack_end=edl_current->stack_end;
     api.syscall_dispatcher=*(volatile uint32_t *)0x74000000;
     if(edl_boot_path(boot)) {
         message("Edelweiss: payload missing",
             "Place main.edl or EBrew.edl beside this D01 in _CONTENT.",-11);
+        edl_profile_release();
+        touch_exword_quit();
         return -2;
     }
     memcpy(active,boot,sizeof active);
@@ -129,7 +138,7 @@ int main(void)
     for(;;) {
         /* Evict old operand aliases before reusing the physical arena. Do
            not invalidate the entire operand cache or touch OS TLB state. */
-        for(uint32_t p=EDL_ARENA_START;p<0x8c800000;p+=32)
+        for(uint32_t p=api.arena_start;p<api.stack_end;p+=32)
             __asm__ volatile("ocbp @%0" :: "r"(p) : "memory");
         __asm__ volatile("synco" ::: "memory");
         struct edl_image image;
@@ -137,10 +146,10 @@ int main(void)
         int rc=edl_load(active,&image);
         if(!rc) {
             edl_sync_code();
-            *(volatile uint32_t *)0x8c7f8000=0x45444c53;
+            *(volatile uint32_t *)(uintptr_t)api.stack_start=0x45444c53;
             clearevents();
             rc=edl_invoke(image.entry,&api,api.stack_end);
-            if(*(volatile uint32_t *)0x8c7f8000!=0x45444c53) {
+            if(*(volatile uint32_t *)(uintptr_t)api.stack_start!=0x45444c53) {
                 message("Edelweiss: stack overflow",active,-12);
                 break;
             }
@@ -155,6 +164,7 @@ int main(void)
         if(!browser || !strcmp(active,boot)) break;
         memcpy(active,boot,sizeof active);
     }
+    edl_profile_release();
     touch_exword_quit();
     return -2;
 }

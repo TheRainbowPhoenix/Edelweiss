@@ -62,8 +62,8 @@ static int load_native(struct io *q)
     int fd=exword_sys_open(q->path,1);
     if(fd<0) return fd;
     int size=exword_sys_get_filesize(fd);
-    int rc=size<0 ? size : edl_elf_load(read_exact,&fd,(uint32_t)size,
-        EDL_ARENA_START,EDL_ARENA_END,write_physical,NULL,q->buffer);
+    int rc=size<0 ? size : edl_elf_load_at(read_exact,&fd,(uint32_t)size,
+        EDL_ARENA_START,EDL_ARENA_END,edl_current->arena_start,write_physical,NULL,q->buffer);
     int close=exword_sys_close(fd);
     return rc<0 ? rc : close<0 ? close : 0;
 }
@@ -161,7 +161,8 @@ int edl_boot_path(char out[EDL_PATH_MAX])
     char id[9]={0},unused[8];
     edl_os_call(0x15,(uint32_t)(uintptr_t)id,(uint32_t)(uintptr_t)unused,0,0);
     /* ROM32A syscall 0x15 copies the active 8-byte content ID and metadata.
-       The ID is d:<folder> or c:<folder>. Other firmware can fall back to
+       The ID is d0<folder>, c0<folder> or c1<folder> on D6600.
+       Older colon-prefixed IDs are also accepted. Other firmware can fall back to
        locating the configured package ID, including on optional crd1. */
     char appid[7]={0};
     size_t n=0;
@@ -173,7 +174,10 @@ int edl_boot_path(char out[EDL_PATH_MAX])
     const char *roots[4]={"\\\\drv0","\\\\drv0\\CASIO",
         "\\\\crd0\\CASIO","\\\\crd1\\CASIO"};
     unsigned order[4]={0,1,2,3};
-    if(id[0]=='c') { order[0]=2; order[1]=3; order[2]=0; order[3]=1; }
+    if(id[0]=='c') {
+        order[0]=id[1]=='1' ? 3 : 2; order[1]=id[1]=='1' ? 2 : 3;
+        order[2]=0; order[3]=1;
+    }
     for(unsigned i=0;i<4;i++) {
         char app[EDL_PATH_MAX],content[EDL_PATH_MAX];
         if(edl_join(app,roots[order[i]],appid) || edl_join(content,app,"_CONTENT")) continue;

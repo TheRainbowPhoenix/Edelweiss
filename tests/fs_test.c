@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdint.h>
 
+const struct edl_firmware *edl_current;
+
 struct directory { const char *pattern; const char *names[5]; unsigned kinds[5]; };
 static const struct directory dirs[]={
     {"\\\\drv0\\*",{"EDELW","EXMPL",".","..",0},{5,5,5,5}},
