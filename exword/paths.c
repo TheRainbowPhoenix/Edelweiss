@@ -50,3 +50,14 @@ int edl_content_id(const char id[8],char appid[7],unsigned order[4])
     }
     return 0;
 }
+
+int edl_name_equal(const char *a,const char *b)
+{
+    for(;;a++,b++) {
+        unsigned char x=(unsigned char)*a,y=(unsigned char)*b;
+        if(x>='A' && x<='Z') x+=32;
+        if(y>='A' && y<='Z') y+=32;
+        if(x!=y) return 0;
+        if(!x) return 1;
+    }
+}

@@ -134,7 +134,7 @@ int main(void)
     }
     memcpy(active,boot,sizeof active);
     const char *leaf=strrchr(boot,'\\');
-    int browser=leaf && !strcmp(leaf+1,"EBrew.edl");
+    int browser=leaf && edl_name_equal(leaf+1,"ebrew.edl");
     for(;;) {
         /* Evict old operand aliases before reusing the physical arena. Do
            not invalidate the entire operand cache or touch OS TLB state. */

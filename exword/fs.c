@@ -73,6 +73,55 @@ int edl_load(const char *path,struct edl_image *image)
     return gint_world_switch(GINT_CALL(load_native,(void *)&q));
 }
 
+/* Resolve uploaded names using directory entries: internal storage can be
+   case-sensitive and installers may lowercase both files and directories. */
+struct child { const char *parent,*name; char *out; int directory; };
+static int child_native(struct child *q)
+{
+    char pattern[EDL_PATH_MAX],name[512]={0};
+    if(edl_join(pattern,q->parent,"*")) return -1;
+    int handle=-1; unsigned long kind=0;
+    int rc=exword_sys_findfirst(pattern,&handle,name,&kind),found=-1;
+    if(rc<0) return rc;
+    do {
+        name[sizeof name-1]=0;
+        if((kind==5)==q->directory && edl_name_equal(name,q->name)) {
+            found=edl_join(q->out,q->parent,name);
+            break;
+        }
+        name[0]=0; kind=0;
+        rc=exword_sys_findnext(handle,name,&kind);
+    } while(rc>=0);
+    int close=exword_sys_findclose(handle);
+    return close<0 ? close : found;
+}
+static int child(const char *parent,const char *name,int directory,char *out)
+{
+    struct child q={parent,name,out,directory};
+    return gint_world_switch(GINT_CALL(child_native,(void *)&q));
+}
+
+static int root_native(struct child *q)
+{
+    const char *sep=strrchr(q->parent+2,'\\');
+    if(!sep) {
+        size_t n=strlen(q->parent);
+        if(n>=EDL_PATH_MAX) return -1;
+        memcpy(q->out,q->parent,n+1); return 0;
+    }
+    char parent[EDL_PATH_MAX];
+    size_t n=(size_t)(sep-q->parent);
+    if(n>=sizeof parent) return -1;
+    memcpy(parent,q->parent,n); parent[n]=0;
+    struct child sub={parent,sep+1,q->out,1};
+    return child_native(&sub);
+}
+static int root_path(const char *root,char *out)
+{
+    struct child q={.parent=root,.out=out};
+    return gint_world_switch(GINT_CALL(root_native,(void *)&q));
+}
+
 struct scan { unsigned first,capacity,total; struct edl_record *rows; int error; };
 static int done(int rc) { return rc==-1 || rc==-16; }
 static void scan_content(struct scan *q,const char *directory)
@@ -116,8 +165,10 @@ static void scan_root(struct scan *q,const char *root)
         name[sizeof name-1]=0;
         if(kind==5 && strcmp(name,".") && strcmp(name,"..")) {
             char app[EDL_PATH_MAX],content[EDL_PATH_MAX];
-            if(!edl_join(app,root,name) && !edl_join(content,app,"_CONTENT"))
-                scan_content(q,content);
+            if(!edl_join(app,root,name)) {
+                struct child sub={app,"_CONTENT",content,1};
+                if(!child_native(&sub)) scan_content(q,content);
+            }
         }
         name[0]=0; kind=0;
         rc=exword_sys_findnext(handle,name,&kind);
@@ -130,7 +181,11 @@ static int scan_native(struct scan *q)
 {
     static const char *roots[]={"\\\\drv0","\\\\drv0\\CASIO",
         "\\\\crd0\\CASIO","\\\\crd1\\CASIO"};
-    for(unsigned i=0;i<sizeof roots/sizeof *roots;i++) scan_root(q,roots[i]);
+    for(unsigned i=0;i<sizeof roots/sizeof *roots;i++) {
+        char root[EDL_PATH_MAX];
+        struct child sub={.parent=roots[i],.out=root};
+        if(!root_native(&sub)) scan_root(q,root);
+    }
     /* Keep a partial successful catalog usable when one device fails. */
     return q->total ? (int)q->total : q->error;
 }
@@ -156,10 +211,8 @@ static int exists(const char *path)
     return edl_read(path,0,magic,sizeof magic)==sizeof magic &&
         !memcmp(magic,"\177ELF\1\2\1",sizeof magic);
 }
-int edl_boot_path(char out[EDL_PATH_MAX])
+int edl_boot_path_for_id(char out[EDL_PATH_MAX],const char id[8])
 {
-    char id[9]={0},unused[8];
-    edl_os_call(0x15,(uint32_t)(uintptr_t)id,(uint32_t)(uintptr_t)unused,0,0);
     /* ROM32A syscall 0x15 copies the active 8-byte content ID and metadata.
        The ID is d0<folder>, c0<folder> or c1<folder> on D6600.
        Older colon-prefixed IDs are also accepted. Other firmware can fall back to
@@ -170,10 +223,17 @@ int edl_boot_path(char out[EDL_PATH_MAX])
     const char *roots[4]={"\\\\drv0","\\\\drv0\\CASIO",
         "\\\\crd0\\CASIO","\\\\crd1\\CASIO"};
     for(unsigned i=0;i<4;i++) {
-        char app[EDL_PATH_MAX],content[EDL_PATH_MAX];
-        if(edl_join(app,roots[order[i]],appid) || edl_join(content,app,"_CONTENT")) continue;
-        if(!edl_join(out,content,"main.edl") && exists(out)) return 0;
-        if(!edl_join(out,content,"EBrew.edl") && exists(out)) return 0;
+        char root[EDL_PATH_MAX],app[EDL_PATH_MAX],content[EDL_PATH_MAX];
+        if(root_path(roots[order[i]],root) || child(root,appid,1,app) || child(app,"_CONTENT",1,content)) continue;
+        if(!child(content,"main.edl",0,out) && exists(out)) return 0;
+        if(!child(content,"ebrew.edl",0,out) && exists(out)) return 0;
     }
     return -1;
+}
+
+int edl_boot_path(char out[EDL_PATH_MAX])
+{
+    char id[9]={0},unused[8];
+    edl_os_call(0x15,(uint32_t)(uintptr_t)id,(uint32_t)(uintptr_t)unused,0,0);
+    return edl_boot_path_for_id(out,id);
 }
