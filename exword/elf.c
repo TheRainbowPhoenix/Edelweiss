@@ -112,4 +112,3 @@ int edl_elf_load(edl_read_fn read, void *rctx, uint32_t size,
     *out=image;
     return 0;
 }
-

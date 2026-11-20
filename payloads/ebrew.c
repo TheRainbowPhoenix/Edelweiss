@@ -34,14 +34,17 @@ static void short_title(char dst[13],const char *src)
 }
 static void refresh(void)
 {
-    page=selected/12;
-    total=host->scan((unsigned)page*12,rows,12);
-    error=total<0 ? total : 0;
-    if(total<0) total=0;
-    if(selected>=total) {
-        selected=total ? total-1 : 0;
-        if(page!=selected/12) { page=selected/12; total=host->scan((unsigned)page*12,rows,12); }
+    /* A card may disappear between reads. Bound retries and never display
+       stale records from a page that no longer exists. */
+    for(int attempt=0;attempt<3;attempt++) {
+        page=selected/12;
+        total=host->scan((unsigned)page*12,rows,12);
+        error=total<0 ? total : 0;
+        if(total<0) total=0;
+        if(selected>=total) selected=total ? total-1 : 0;
+        if(page==selected/12) return;
     }
+    total=selected=page=0; error=-1;
 }
 static void header(void)
 {
