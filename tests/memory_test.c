@@ -9,7 +9,8 @@ struct mock
     uintptr_t answer;
     size_t requested;
     int allocations, releases, maps, unmaps;
-    int map_fail_at, unmap_fail_at;
+    int map_fail_at, unmap_fail_at, bad_translation;
+    unsigned translations;
     uint32_t mapped_va[EDL_MEMORY_PAGES], mapped_pa[EDL_MEMORY_PAGES];
 };
 static void *allocate(void *context, size_t size)
@@ -46,6 +47,23 @@ static int unmap(void *context, uint32_t va, uint32_t bytes)
     assert(m->unmaps < m->maps);
     assert(va == m->mapped_va[m->maps - 1 - m->unmaps]);
     m->unmaps++;
+    return 0;
+}
+/* Emulate a virtual OS heap whose 64 KiB physical extents are separated.
+   Every 4 KiB within each extent still needs a valid linear mapping. */
+static int translate(void *context, uint32_t va, uint32_t *physical)
+{
+    struct mock *m = context;
+    uint32_t aligned = ((uint32_t)m->answer + EDL_MEMORY_PAGE - 1u) &
+                       ~(EDL_MEMORY_PAGE - 1u);
+    if (va < aligned || va - aligned >= EDL_MEMORY_BYTES || (va & 4095u))
+        return -1;
+    uint32_t offset = va - aligned;
+    *physical = 0x0c000000u + (offset / EDL_MEMORY_PAGE) * 0x20000u +
+                offset % EDL_MEMORY_PAGE;
+    if (m->bad_translation && offset == 8192u)
+        *physical += 4096u;
+    m->translations++;
     return 0;
 }
 static struct edl_memory_ops ops(struct mock *m)
@@ -108,6 +126,40 @@ int main(void)
     assert(edl_memory_close(&memory) < 0);
     assert(memory.poisoned && m.releases == 0);
     assert(edl_memory_activate(&memory) < 0);
-    puts("Allocator-backed P0 mapping, rollback and fail-closed teardown passed");
+
+    /* Host allocator returned an OS virtual pointer, not a P1 alias. */
+    memset(&m, 0, sizeof m);
+    m.answer = 0x123456u;
+    m.map_fail_at = -1;
+    m.unmap_fail_at = -1;
+    callbacks = ops(&m);
+    callbacks.translate = translate;
+    assert(!edl_memory_open(&memory, &callbacks));
+    assert(m.translations == EDL_MEMORY_BYTES / 4096u);
+    assert(!edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE - 4u,
+                               4, &physical));
+    assert(physical == 0x0c00fffcu);
+    assert(edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE - 4u,
+                              8, &physical) < 0);
+    assert(!edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE + 8u,
+                               4, &physical));
+    assert(physical == 0x0c020008u);
+    assert(!edl_memory_finish_load(&memory));
+    assert(!edl_memory_activate(&memory));
+    for (unsigned i = 0; i < EDL_MEMORY_PAGES; i++)
+        assert(m.mapped_pa[i] == 0x0c000000u + i * 0x20000u);
+    assert(!edl_memory_close(&memory));
+    assert(m.releases == 1);
+
+    /* Reject allocations containing a physically fragmented 64 KiB extent. */
+    memset(&m, 0, sizeof m);
+    m.answer = 0x123456u;
+    m.bad_translation = 1;
+    callbacks = ops(&m);
+    callbacks.translate = translate;
+    assert(edl_memory_open(&memory, &callbacks) < 0);
+    assert(m.releases == 1 && m.maps == 0);
+
+    puts("OS heap translation, 64 KiB mapping, rollback and teardown passed");
     return 0;
 }
