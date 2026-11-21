@@ -9,6 +9,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifndef O_ACCMODE
+#define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
+#endif
+
 static const struct edl_api *host;
 static struct
 {
