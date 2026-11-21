@@ -43,7 +43,7 @@ int edl_read(const char *path, uint32_t offset, void *dst, uint32_t size)
 {
     if (size > INT_MAX)
         return -1;
-    struct io q = {path, offset, size, dst};
+    struct io q = {.path = path, .offset = offset, .size = size, .buffer = dst};
     return gint_world_switch(GINT_CALL(read_native, (void *)&q));
 }
 static int metadata_native(struct io *q)
