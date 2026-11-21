@@ -5,8 +5,9 @@
 
 const struct edl_firmware *edl_current;
 struct edl_arena edl_active_arena;
-static int uses_syscall_ae;
 
+/* Read-only diagnostic: the returned region can be overwritten by the
+   firmware at any time. Never make it the executable / stack arena. */
 int edl_syscall_ae_probe(struct edl_arena *out)
 {
     if (!out)
@@ -25,15 +26,11 @@ static int rom_read(uint32_t address, void *out, size_t size, void *ctx)
 int edl_profile_init(void)
 {
     edl_current = edl_firmware_detect(rom_read, NULL);
-    uses_syscall_ae = 0;
     memset(&edl_active_arena, 0, sizeof edl_active_arena);
-    /* The native host buffer is not bound to a particular ROM fingerprint. */
-    if (!edl_syscall_ae_probe(&edl_active_arena))
-    {
-        uses_syscall_ae = 1;
-        return 0;
-    }
-    /* Only the former fixed RAM fallback needs a known firmware. */
+    /* syscall AE selector 3 exposes shared firmware scratch, not allocated
+       executable memory. A8500 shell routines write to that same range
+       during native I/O. Never use it for EDL image or stack storage.
+       Unknown ROMs fail closed until they have a proven RAM lease. */
     if (!edl_current)
         return -10;
     edl_active_arena = (struct edl_arena){.arena_start = edl_current->arena_start,
@@ -82,9 +79,7 @@ int edl_profile_init(void)
 }
 void edl_profile_release(void)
 {
-    /* There is no host free syscall for the AE buffer. Do not scrub
-       firmware-owned scratch on unload. */
-    if (uses_syscall_ae || !edl_current || edl_current->arena_start < 0x8c800000)
+    if (!edl_current || edl_current->arena_start < 0x8c800000)
         return;
     for (uint32_t p = edl_current->arena_start; p < edl_current->stack_end; p += 32)
         __asm__ volatile("ocbp @%0" ::"r"(p) : "memory");

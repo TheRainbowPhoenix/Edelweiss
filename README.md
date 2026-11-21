@@ -5,13 +5,12 @@ This codebase is adapted from [MPM](https://git.planet-casio.com/PlaneteCasio/mp
 
 ![EBrew host preview](docs/ebrew-preview.png)
 
-**Experimental hardware build:** The loader now first tries native
-`syscall_ae` selector 3 to obtain a runtime-sized P1/P2 SDRAM arena, even on
-previously unknown firmware. If the syscall fails validation, only the
-fingerprinted legacy firmware arenas remain as fallback. The host's
-exclusive ownership of this scratch memory during all EDL/OS callbacks
-has **not** been confirmed on-device; do not treat a successful cross-build
-as proof that execution is safe on every model.
+**Experimental hardware build:** The generic `syscall_ae` scratch
+execution path has been **disabled**. The A8500 ROM demonstrably writes to
+that shared scratch during native work. Executing from it is unsafe. Only
+the fingerprinted A8500/D6600 P1 RAM arenas remain active until a genuine
+native memory lease can be verified. Cross-build success is not proof of
+device safety.
 
 
 ## Hardware compatibility smoke test

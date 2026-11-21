@@ -1,20 +1,21 @@
 # Allocator-backed MMU loading (experimental backend)
 
-The normal EX-word loader now **prefers syscall 0xae selector 3** across
-all ROMs that expose it. It checks the returned P1/P2 SDRAM pointer and size,
-aligns down to a set of physical 64 KiB chunks, and loads relocatable EDLs
-directly through P1/P2 aliases. This provides a generic **direct P1 execution
-path** without requiring a firmware fingerprint. If the syscall returns an
-invalid buffer, the loader falls back only to known firmware legacy arenas.
+**Hardware stop-ship finding (2026-11-21):** A8500 firmware directly writes
+to the range returned by syscall `0xae` selector 3. For example,
+`FUN_802c7b80` clears `DAT_ac3c2024` over `0x100004` bytes, and
+`FUN_802cc67c` passes the same buffer to file I/O. These addresses
+overlap the entire formerly selected `0x8c3d0000..0x8c4c0000`
+EDL executable/stack arena. Thus **the generic syscall-AE executable
+path is unsafe and has been disabled**. A ROM returning a valid-looking
+pointer does not confer memory ownership.
 
-The separate **fixed-VA MMU backend remains experimental and disabled**.
-The ROM's 0xae buffer is a fixed scratch region, not malloc/free. Execution
-using it relies on the user-supplied deployment assumption that the host
-allows use of the buffer throughout the EDL lifetime, including its native
-filesystem/UI callbacks. This cannot be inferred solely from the A8500
-ROM, so this is not a proved all-device guarantee.
+The normal loader is restored to the firmware-fingerprinted P1 arenas
+for A8500 and D6600. Other firmware fails closed. The separate fixed-VA
+MMU backend remains experimental and disabled. A genuine cross-device
+implementation needs a host RAM lease whose lifetime survives all
+native callbacks, or another independently verified memory owner.
 
-## Generic syscall 0xae P1 execution
+## Generic syscall 0xae diagnostic (execution disabled)
 
 `edl_syscall_ae_probe` calls `edl_os_call(0xae, 3, &bytes, 0, 0)` via
 the native OS world. `edl_scratch_layout` validates a P1/P2 SDRAM alias,
@@ -29,11 +30,11 @@ full chunks hold the ELF. On the A8500, the returned
 - guard `0x8c4b0000..0x8c4b8000`
 - stack `0x8c4b8000..0x8c4c0000`
 
-Different models can return different lengths and addresses. Existing ELF
-relocations adjust to the actual P1 address. **No new MMU mapping is
-installed on this path.** It does not yet provide a common fixed virtual VA.
-Both this generic scratch path and its eventual MMU replacement depend on a
-host-owned buffer whose lifetime is not independently verified by the ROM.
+The code retains a pure geometry diagnostic for the returned buffer
+to help analyze different models. **The program must not execute from
+the returned pages.** The A8500 ROM proves that these pages are reused by
+native code; another host's apparently valid reply is not proof of a lease.
+Existing ELF relocation instead runs on the approved P1 arena.
 
 ## Experimental fixed-VA MMU layout
 
