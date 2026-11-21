@@ -184,14 +184,15 @@ int main(void)
     assert(value(0) == ACTUAL + 20 && value(4) == 0xa4050000);
     fixture();
     struct edl_image mapped_image;
-    assert(!edl_elf_load_to(read_file, NULL, sizeof file, P0_ACTUAL, P0_ACTUAL + 4096,
-                            write_p0, NULL, NULL, NULL, &mapped_image));
+    assert(!edl_elf_load_to(read_file, NULL, sizeof file, P0_ACTUAL, P0_ACTUAL + 4096, write_p0,
+                            NULL, NULL, NULL, &mapped_image));
     assert(mapped_image.entry == P0_ACTUAL);
     assert(value(0) == P0_ACTUAL + 20 && value(4) == 0xa4050000);
     fixture();
     writes = 0;
-    assert(edl_elf_load_to(read_file, NULL, sizeof file, P0_ACTUAL, P0_ACTUAL + 1024,
-                           write_p0, NULL, NULL, NULL, &mapped_image) < 0 && writes == 0);
+    assert(edl_elf_load_to(read_file, NULL, sizeof file, P0_ACTUAL, P0_ACTUAL + 1024, write_p0,
+                           NULL, NULL, NULL, &mapped_image) < 0 &&
+           writes == 0);
     fixture_at(0x8c900000u);
     assert(!edl_elf_link_range(read_file, NULL, sizeof file, &link_start, &link_end));
     assert(link_start == 0x8c900000u && link_end == link_start + 4096);

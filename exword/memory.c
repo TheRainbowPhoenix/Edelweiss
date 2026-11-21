@@ -10,13 +10,11 @@ int edl_memory_physical(void *allocation, size_t bytes, uint32_t *physical)
 {
     uintptr_t raw = (uintptr_t)allocation;
     if (!physical || raw < 0x8c000000u || raw >= 0x90000000u ||
-        bytes < EDL_MEMORY_BYTES + EDL_MEMORY_PAGE - 1u ||
-        bytes > UINT32_MAX || raw > UINT32_MAX - bytes)
+        bytes < EDL_MEMORY_BYTES + EDL_MEMORY_PAGE - 1u || bytes > UINT32_MAX ||
+        raw > UINT32_MAX - bytes)
         return -1;
-    uint32_t aligned = ((uint32_t)raw + EDL_MEMORY_PAGE - 1u) &
-                       ~(EDL_MEMORY_PAGE - 1u);
-    if (aligned < raw || aligned - raw > bytes ||
-        EDL_MEMORY_BYTES > bytes - (aligned - raw) ||
+    uint32_t aligned = ((uint32_t)raw + EDL_MEMORY_PAGE - 1u) & ~(EDL_MEMORY_PAGE - 1u);
+    if (aligned < raw || aligned - raw > bytes || EDL_MEMORY_BYTES > bytes - (aligned - raw) ||
         aligned > 0x90000000u - EDL_MEMORY_BYTES)
         return -1;
     *physical = aligned & 0x1fffffffu;
@@ -100,8 +98,7 @@ int edl_memory_close(struct edl_memory *memory)
     while (memory->mapped)
     {
         uint32_t offset = (memory->mapped - 1u) * EDL_MEMORY_PAGE;
-        if (memory->ops.unmap(memory->ops.context, EDL_MEMORY_VBASE + offset,
-                              EDL_MEMORY_PAGE))
+        if (memory->ops.unmap(memory->ops.context, EDL_MEMORY_VBASE + offset, EDL_MEMORY_PAGE))
         {
             memory->poisoned = 1;
             return -1;

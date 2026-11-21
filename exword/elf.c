@@ -326,22 +326,19 @@ int edl_elf_link_range(edl_read_fn read, void *rctx, uint32_t size, uint32_t *st
     return relocation_marker(&r, h, start, end);
 }
 
-int edl_elf_load_to(edl_read_fn read, void *rctx, uint32_t size,
-                    uint32_t actual_start, uint32_t actual_end, edl_write_fn write,
-                    void *wctx, edl_resolve_fn resolve, void *resolve_context,
-                    struct edl_image *out)
+int edl_elf_load_to(edl_read_fn read, void *rctx, uint32_t size, uint32_t actual_start,
+                    uint32_t actual_end, edl_write_fn write, void *wctx, edl_resolve_fn resolve,
+                    void *resolve_context, struct edl_image *out)
 {
     uint32_t link_start, link_end;
     /* The MMU adapter must own this P0 window before it is executed. */
-    if (!out || !write || actual_start < 0x00100000u ||
-        actual_end > 0x80000000u || actual_start >= actual_end ||
-        (actual_start & 0xfffu) ||
-        edl_elf_link_range(read, rctx, size, &link_start, &link_end) ||
-        link_start < 0x80000000u || link_end > 0xa0000000u ||
-        link_end - link_start > actual_end - actual_start)
+    if (!out || !write || actual_start < 0x00100000u || actual_end > 0x80000000u ||
+        actual_start >= actual_end || (actual_start & 0xfffu) ||
+        edl_elf_link_range(read, rctx, size, &link_start, &link_end) || link_start < 0x80000000u ||
+        link_end > 0xa0000000u || link_end - link_start > actual_end - actual_start)
         return -1;
-    return edl_elf_load_linked(read, rctx, size, link_start, link_end,
-                               actual_start, write, wctx, resolve, resolve_context, out);
+    return edl_elf_load_linked(read, rctx, size, link_start, link_end, actual_start, write, wctx,
+                               resolve, resolve_context, out);
 }
 
 int edl_elf_load_auto(edl_read_fn read, void *rctx, uint32_t size, uint32_t arena_start,
