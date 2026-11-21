@@ -9,7 +9,7 @@ endif()
 # ROM32A profile, shared by stage 0 and the payload linker. P1 bypasses the TLB.
 include(../sdk/GenerateEDL.cmake)
 
-add_executable(edelweiss main.c fs.c paths.c profile.c firmware.c scratch.c gint_exports.c native.S elf.c memory.c)
+add_executable(edelweiss main.c fs.c paths.c profile.c firmware.c scratch.c read_cache.c gint_exports.c native.S elf.c memory.c)
 target_compile_definitions(edelweiss PRIVATE EDL_APPID="${EDL_APPID}")
 target_compile_options(edelweiss PRIVATE -Wall -Wextra -Os -flto=auto
   -fno-pic -fno-pie -fno-stack-protector)

@@ -50,6 +50,8 @@ jobs:
           /tmp/test-memory
           cc -std=c11 -Wall -Wextra -Werror exword/scratch.c tests/scratch_test.c -o /tmp/test-scratch
           /tmp/test-scratch
+          cc -std=c11 -Wall -Wextra -Werror exword/read_cache.c tests/read_cache_test.c -o /tmp/test-cache
+          /tmp/test-cache
   build:
     runs-on: ubuntu-latest
     container:
@@ -68,6 +70,8 @@ jobs:
           /tmp/test-relocation
           cc -std=c11 -Wall -Wextra -Werror exword/scratch.c tests/scratch_test.c -o /tmp/test-scratch
           /tmp/test-scratch
+          cc -std=c11 -Wall -Wextra -Werror exword/read_cache.c tests/read_cache_test.c -o /tmp/test-cache
+          /tmp/test-cache
           cc -std=c11 -Wall -Wextra -Werror -Itests/mock \
             '-DEDL_APPID="EDELW"' -DEDL_ARENA_START=0x8c700000 -DEDL_ARENA_END=0x8c7f0000 \
             exword/fs.c exword/paths.c exword/elf.c exword/memory.c tests/fs_test.c -o /tmp/test-fs

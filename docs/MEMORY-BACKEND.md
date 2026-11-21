@@ -121,6 +121,17 @@ evidence for filesystem calls, interrupts and normal exit. A fingerprinted
 firmware or equivalent trusted host API is still necessary. Arbitrary
 firmware support cannot be guaranteed merely from a similar RAM map.
 
+## ELF filesystem performance
+
+The native EX-word file API is expensive for random seek/read operations.
+For example a real TinyKing EDL has about 485 allocated relocation entries
+and previously required thousands of tiny file operations while the screen
+displayed "loading...". `exword/read_cache.c` now caches four 2 KiB
+file blocks during inspection, relocation and segment loading, reducing
+repeat OS reads without running executable code out of native scratch.
+Each new file invalidates the cache. This improves load time; it does
+not by itself resolve arbitrary ROM MMU or framebuffer compatibility.
+
 ## Host validation
 
 `tests/memory_test.c` checks alignment, P1 physical range, sixteen

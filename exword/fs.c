@@ -1,9 +1,14 @@
 #include "host.h"
 #include "memory.h"
+#include "read_cache.h"
 #include <gint/exword.h>
 #include <gint/gint.h>
 #include <string.h>
 #include <limits.h>
+
+/* Only one ELF/metadata file is processed at a time in the native
+   world. Put the 8 KiB read cache in D01 BSS, not on the OS call stack. */
+static struct edl_read_cache elf_cache;
 
 struct io
 {
@@ -52,9 +57,13 @@ static int metadata_native(struct io *q)
     if (fd < 0)
         return fd;
     int size = exword_sys_get_filesize(fd);
-    int rc = size < 0 ? size
-                      : edl_elf_metadata(read_exact, &fd, (uint32_t)size, q->buffer,
-                                         sizeof(struct edl_metadata));
+    int rc = size;
+    if (size >= 0)
+    {
+        edl_read_cache_init(&elf_cache, read_exact, &fd, (uint32_t)size);
+        rc = edl_elf_metadata(edl_read_cache_read, &elf_cache, (uint32_t)size, q->buffer,
+                              sizeof(struct edl_metadata));
+    }
     int close = exword_sys_close(fd);
     if (rc < 0)
         return rc;
@@ -83,14 +92,18 @@ static int load_native(struct io *q)
     int rc;
     if (size < 0)
         rc = size;
-    else if (q->mapping)
-        rc =
-            edl_elf_load_to(read_exact, &fd, (uint32_t)size, EDL_MEMORY_VBASE, EDL_MEMORY_IMAGE_END,
-                            edl_memory_write, q->mapping, edl_resolve_gint, NULL, q->buffer);
     else
-        rc = edl_elf_load_auto(read_exact, &fd, (uint32_t)size, edl_active_arena.arena_start,
-                               edl_active_arena.arena_end, write_physical, NULL, edl_resolve_gint,
-                               NULL, q->buffer);
+    {
+        edl_read_cache_init(&elf_cache, read_exact, &fd, (uint32_t)size);
+        if (q->mapping)
+            rc = edl_elf_load_to(edl_read_cache_read, &elf_cache, (uint32_t)size, EDL_MEMORY_VBASE,
+                                 EDL_MEMORY_IMAGE_END, edl_memory_write, q->mapping,
+                                 edl_resolve_gint, NULL, q->buffer);
+        else
+            rc = edl_elf_load_auto(edl_read_cache_read, &elf_cache, (uint32_t)size,
+                                   edl_active_arena.arena_start, edl_active_arena.arena_end,
+                                   write_physical, NULL, edl_resolve_gint, NULL, q->buffer);
+    }
     int close = exword_sys_close(fd);
     return rc < 0 ? rc : close < 0 ? close : 0;
 }
