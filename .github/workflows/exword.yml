@@ -38,6 +38,16 @@ jobs:
           /tmp/test-firmware
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/relocation_test.c -o /tmp/test-relocation
           /tmp/test-relocation
+  host-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise allocator-owned MMU mapping and teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -Wall -Wextra -Werror exword/memory.c tests/memory_test.c -o /tmp/test-memory
+          /tmp/test-memory
   build:
     runs-on: ubuntu-latest
     container:

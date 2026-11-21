@@ -13,6 +13,8 @@ int edl_scan(unsigned first, struct edl_record *rows, unsigned capacity);
 int edl_read(const char *path, uint32_t offset, void *dst, uint32_t size);
 int edl_metadata(const char *path, struct edl_metadata *out);
 int edl_load(const char *path, struct edl_image *image);
+struct edl_memory;
+int edl_load_mapped(const char *path, struct edl_memory *mapping, struct edl_image *image);
 int edl_os_call(uint32_t id, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 int edl_native_dispatch(uint32_t id, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
 int edl_invoke(uint32_t entry, const struct edl_api *api, uint32_t stack);
