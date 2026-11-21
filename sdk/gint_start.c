@@ -35,6 +35,8 @@ __attribute__((section(".text.edl_entry"))) int edl_entry(const struct edl_api *
     if (!api || api->magic != EDL_ABI_MAGIC || api->version != EDL_ABI_VERSION ||
         api->size < sizeof *api)
         return -1;
+    exit_code = 0;
+    finalizing = 0;
     edl_gint_set_api(api);
     arena = (kmalloc_arena_t){
         .name = "edelweiss", .start = heap, .end = heap + sizeof heap, .is_default = 1};
@@ -48,7 +50,7 @@ __attribute__((section(".text.edl_entry"))) int edl_entry(const struct edl_api *
     {
         for (void (**p)(void) = edl_ctors_start; p < edl_ctors_end; p++)
             (*p)();
-        exit_code = main();
+        exit(main());
     }
     edl_gint_cleanup();
     if (!finalizing)

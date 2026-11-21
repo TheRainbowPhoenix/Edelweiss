@@ -49,6 +49,12 @@ jobs:
             -Dwrite=edl_test_write -Dlseek=edl_test_lseek -Dfstat=edl_test_fstat \
             -Dstat=edl_test_stat sdk/gint_fs.c tests/gint_fs_test.c -o /tmp/test-gint-fs
           /tmp/test-gint-fs
+          cc -std=c11 -Wall -Wextra -Werror -Itests/mock \
+            -Dmain=payload_main -D_Exit=edl_test_Exit -Dabort=edl_test_abort -Dexit=edl_test_exit \
+            -Dedl_entry=edl_test_entry -c sdk/gint_start.c -o /tmp/gint-start.o
+          cc -std=c11 -fno-toplevel-reorder -Wall -Wextra -Werror -Itests/mock \
+            /tmp/gint-start.o tests/gint_start_test.c -o /tmp/test-gint-start
+          /tmp/test-gint-start
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/check_edl.c -o /tmp/check-edl
           python3 tools/generate_assets.py /tmp/edl-assets
           python3 tests/assets_test.py

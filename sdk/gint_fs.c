@@ -67,6 +67,16 @@ static int path_native(const char *path, char out[EDL_PATH_MAX])
         out[n++] = *path == '/' ? '\\' : *path;
     }
     out[n] = 0;
+    if (n && out[0] == '\\' && out[1] != '\\')
+    {
+        if (n + 1 >= EDL_PATH_MAX)
+        {
+            errno = ENAMETOOLONG;
+            return -1;
+        }
+        memmove(out + 1, out, n + 1);
+        out[0] = '\\';
+    }
     if (!strncmp(out, "\\\\fls0\\", 7))
         memcpy(out + 2, "drv0", 4);
     return 0;
@@ -182,6 +192,11 @@ ssize_t read(int fd, void *buffer, size_t size)
         errno = EINVAL;
         return -1;
     }
+    if (size > (size_t)(INT_MAX - files[i].position))
+    {
+        errno = EFBIG;
+        return -1;
+    }
     int rc = call(0x3c, files[i].native, (uint32_t)(uintptr_t)buffer, (uint32_t)size, 0);
     if (rc >= 0)
         files[i].position += rc;
@@ -201,6 +216,11 @@ ssize_t write(int fd, const void *buffer, size_t size)
         return -1;
     if (files[i].append && lseek(fd, 0, SEEK_END) < 0)
         return -1;
+    if (size > (size_t)(INT_MAX - files[i].position))
+    {
+        errno = EFBIG;
+        return -1;
+    }
     int rc = call(0x3d, files[i].native, (uint32_t)(uintptr_t)buffer, (uint32_t)size, 0);
     if (rc >= 0)
         files[i].position += rc;
