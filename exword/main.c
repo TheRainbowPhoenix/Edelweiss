@@ -264,8 +264,7 @@ int main(void)
             }
             if (release_input())
             {
-                message("Edelweiss: input held",
-                        "A key or touch remains held after the payload.", -21);
+                message("Edelweiss: input held", "Key or pen held after exit.", -21);
                 break;
             }
             if (rc == EDL_LAUNCH && next[0])
