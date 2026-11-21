@@ -26,4 +26,6 @@ int edl_resolve_gint(void *ctx, const char *name, uint32_t *address);
 void edl_gint_cleanup(void);
 void edl_sync_code(void);
 int edl_battery_state(void);
+/* Firmware-gated, read-only diagnostic. Returned memory remains OS-owned. */
+int edl_a8500_scratch_probe(struct edl_scratch_range *out);
 #endif

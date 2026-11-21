@@ -83,3 +83,15 @@ int edl_battery_state(void)
 {
     return edl_current ? gint_world_switch(GINT_CALL(battery_native)) : -1;
 }
+
+/* Diagnostic only: the active profile must match the *exact* known A8500
+   ROM fingerprints. No mapping, allocation, write or ownership assumption. */
+int edl_a8500_scratch_probe(struct edl_scratch_range *out)
+{
+    if (!out || edl_current != &edl_firmwares[0])
+        return -1;
+    uint32_t size = 0;
+    uint32_t address =
+        (uint32_t)edl_os_call(0xae, 3u, (uint32_t)(uintptr_t)&size, 0u, 0u);
+    return edl_a8500_scratch_validate(address, size, out);
+}
