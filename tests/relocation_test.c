@@ -107,6 +107,26 @@ static void fixture(void)
     w32(828, 0x102);
     w32(832, 20); /* internal PC-relative */
 }
+/* Re-link the synthetic ET_EXEC image; relocations stay in place. */
+static void fixture_at(uint32_t base)
+{
+    fixture();
+    w32(24, base);
+    w32(60, base);
+    w32(336 + 12, base);
+    w32(644, base);
+    w32(716 + 4, base);
+    w32(128, base + 20);
+    w32(800, base);
+    w32(812, base + 4);
+    w32(824, base + 8);
+}
+static int load_auto(void)
+{
+    struct edl_image image;
+    return edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096, write_memory,
+                             NULL, NULL, NULL, &image);
+}
 static int load(void)
 {
     struct edl_image image;
@@ -146,6 +166,31 @@ static void import_fixture(void)
 }
 int main(void)
 {
+    uint32_t link_start, link_end;
+    fixture();
+    assert(!edl_elf_link_range(read_file, NULL, sizeof file, &link_start, &link_end));
+    assert(link_start == BASE && link_end == BASE + 4096);
+    assert(!load_auto());
+    assert(value(0) == ACTUAL + 20 && value(4) == 0xa4050000);
+    fixture_at(0x8c900000u);
+    assert(!edl_elf_link_range(read_file, NULL, sizeof file, &link_start, &link_end));
+    assert(link_start == 0x8c900000u && link_end == link_start + 4096);
+    assert(!load_auto());
+    assert(value(0) == ACTUAL + 20 && value(4) == 0xa4050000);
+    fixture();
+    w32(648, 8192);
+    assert(load_auto() < 0 && writes == 0); /* Not enough device arena. */
+    fixture();
+    w32(648, 0);
+    assert(edl_elf_link_range(read_file, NULL, sizeof file, &link_start, &link_end) < 0);
+    assert(load_auto() < 0 && writes == 0);
+    fixture();
+    w32(644, 0xfffff000u);
+    assert(edl_elf_link_range(read_file, NULL, sizeof file, &link_start, &link_end) < 0);
+    assert(load_auto() < 0 && writes == 0);
+    fixture();
+    w32(640, 0);
+    assert(load_auto() < 0 && writes == 0);
     fixture();
     assert(!load());
     fixture();
@@ -192,6 +237,11 @@ int main(void)
     assert(edl_elf_load_at(read_file, NULL, sizeof file, BASE, BASE + 4096, 0xfffff800,
                            write_memory, NULL, &image) < 0 &&
            writes == 0);
+    import_fixture();
+    struct edl_image auto_image;
+    assert(!edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096, write_memory,
+                              NULL, resolve_service, NULL, &auto_image));
+    assert(value(4) == 0x70001008 && auto_image.entry == ACTUAL);
     import_fixture();
     assert(!edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, ACTUAL,
                                 write_memory, NULL, resolve_service, NULL, &image));
