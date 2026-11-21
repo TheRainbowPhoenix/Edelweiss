@@ -54,13 +54,11 @@ static int unmap(void *context, uint32_t va, uint32_t bytes)
 static int translate(void *context, uint32_t va, uint32_t *physical)
 {
     struct mock *m = context;
-    uint32_t aligned = ((uint32_t)m->answer + EDL_MEMORY_PAGE - 1u) &
-                       ~(EDL_MEMORY_PAGE - 1u);
+    uint32_t aligned = ((uint32_t)m->answer + EDL_MEMORY_PAGE - 1u) & ~(EDL_MEMORY_PAGE - 1u);
     if (va < aligned || va - aligned >= EDL_MEMORY_BYTES || (va & 4095u))
         return -1;
     uint32_t offset = va - aligned;
-    *physical = 0x0c000000u + (offset / EDL_MEMORY_PAGE) * 0x20000u +
-                offset % EDL_MEMORY_PAGE;
+    *physical = 0x0c000000u + (offset / EDL_MEMORY_PAGE) * 0x20000u + offset % EDL_MEMORY_PAGE;
     if (m->bad_translation && offset == 8192u)
         *physical += 4096u;
     m->translations++;
@@ -136,13 +134,10 @@ int main(void)
     callbacks.translate = translate;
     assert(!edl_memory_open(&memory, &callbacks));
     assert(m.translations == EDL_MEMORY_BYTES / 4096u);
-    assert(!edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE - 4u,
-                               4, &physical));
+    assert(!edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE - 4u, 4, &physical));
     assert(physical == 0x0c00fffcu);
-    assert(edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE - 4u,
-                              8, &physical) < 0);
-    assert(!edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE + 8u,
-                               4, &physical));
+    assert(edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE - 4u, 8, &physical) < 0);
+    assert(!edl_memory_resolve(&memory, EDL_MEMORY_VBASE + EDL_MEMORY_PAGE + 8u, 4, &physical));
     assert(physical == 0x0c020008u);
     assert(!edl_memory_finish_load(&memory));
     assert(!edl_memory_activate(&memory));

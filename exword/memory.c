@@ -36,13 +36,10 @@ static int backing_pages(const struct edl_memory_ops *ops, void *p, size_t bytes
             pages[i] = first + i * EDL_MEMORY_PAGE;
         return 0;
     }
-    if (raw < 0x00010000u || raw >= 0xa0000000u || bytes > UINT32_MAX ||
-        raw > UINT32_MAX - bytes)
+    if (raw < 0x00010000u || raw >= 0xa0000000u || bytes > UINT32_MAX || raw > UINT32_MAX - bytes)
         return -1;
-    uint32_t aligned = ((uint32_t)raw + EDL_MEMORY_PAGE - 1u) &
-                       ~(EDL_MEMORY_PAGE - 1u);
-    if (aligned < raw || aligned - raw > bytes ||
-        EDL_MEMORY_BYTES > bytes - (aligned - raw))
+    uint32_t aligned = ((uint32_t)raw + EDL_MEMORY_PAGE - 1u) & ~(EDL_MEMORY_PAGE - 1u);
+    if (aligned < raw || aligned - raw > bytes || EDL_MEMORY_BYTES > bytes - (aligned - raw))
         return -1;
     for (unsigned i = 0; i < EDL_MEMORY_PAGES; i++)
     {
@@ -51,9 +48,8 @@ static int backing_pages(const struct edl_memory_ops *ops, void *p, size_t bytes
         {
             uint32_t address = aligned + i * EDL_MEMORY_PAGE + j * 4096u;
             uint32_t physical = 0;
-            if (ops->translate(ops->context, address, &physical) ||
-                (physical & 4095u) || physical < 0x0c000000u ||
-                physical > 0x10000000u - 4096u)
+            if (ops->translate(ops->context, address, &physical) || (physical & 4095u) ||
+                physical < 0x0c000000u || physical > 0x10000000u - 4096u)
                 return -1;
             if (!j)
             {
@@ -118,8 +114,7 @@ int edl_memory_write(void *memory, uint32_t va, const void *data, size_t size)
     struct edl_memory *owned_memory = memory;
     uint32_t physical;
     if (!owned(owned_memory) || owned_memory->mapped || owned_memory->loaded || !data ||
-        va < EDL_MEMORY_VBASE || va >= EDL_MEMORY_STACK_END ||
-        size > EDL_MEMORY_STACK_END - va)
+        va < EDL_MEMORY_VBASE || va >= EDL_MEMORY_STACK_END || size > EDL_MEMORY_STACK_END - va)
         return -1;
 #if defined(__sh__)
     /* Copy per extent because host-owned backing can be physically scattered.
