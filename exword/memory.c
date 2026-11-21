@@ -39,6 +39,15 @@ int edl_memory_open(struct edl_memory *memory, const struct edl_memory_ops *ops)
     }
     memory->allocation = p;
     memory->physical = physical;
+#if defined(__sh__)
+    /* Evict any dirty cached aliases before the ELF writer uses P2. */
+    for (uint32_t offset = 0; offset < EDL_MEMORY_BYTES; offset += 32)
+    {
+        uint32_t address = (physical + offset) | 0x80000000u;
+        __asm__ volatile("ocbp @%0" ::"r"(address) : "memory");
+    }
+    __asm__ volatile("synco" ::: "memory");
+#endif
     return 0;
 }
 
@@ -57,8 +66,10 @@ int edl_memory_resolve(const struct edl_memory *memory, uint32_t va, size_t size
 
 int edl_memory_write(void *memory, uint32_t va, const void *data, size_t size)
 {
+    struct edl_memory *owned_memory = memory;
     uint32_t physical;
-    if (!data || edl_memory_resolve(memory, va, size, &physical))
+    if (!owned(owned_memory) || owned_memory->mapped || owned_memory->loaded ||
+        !data || edl_memory_resolve(memory, va, size, &physical))
         return -1;
 #if defined(__sh__)
     /* The uncached P2 alias is safe for loader writes while the P0 window
@@ -72,9 +83,26 @@ int edl_memory_write(void *memory, uint32_t va, const void *data, size_t size)
 #endif
 }
 
+int edl_memory_finish_load(struct edl_memory *memory)
+{
+    if (!owned(memory) || memory->mapped || memory->loaded)
+        return -1;
+#if defined(__sh__)
+    __asm__ volatile("synco" ::: "memory");
+    for (uint32_t offset = 0; offset < EDL_MEMORY_BYTES; offset += 32)
+    {
+        uint32_t address = (memory->physical + offset) | 0x80000000u;
+        __asm__ volatile("icbi @%0" ::"r"(address) : "memory");
+    }
+    __asm__ volatile("synco" ::: "memory");
+#endif
+    memory->loaded = 1;
+    return 0;
+}
+
 int edl_memory_activate(struct edl_memory *memory)
 {
-    if (!owned(memory) || memory->mapped)
+    if (!owned(memory) || memory->mapped || !memory->loaded)
         return -1;
     for (unsigned i = 0; i < EDL_MEMORY_PAGES; i++)
     {

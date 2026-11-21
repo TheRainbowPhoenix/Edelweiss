@@ -74,6 +74,8 @@ int main(void)
     assert(physical == 0x0c020008u);
     assert(edl_memory_resolve(&memory, EDL_MEMORY_VBASE - 4, 4, &physical) < 0);
     assert(edl_memory_resolve(&memory, EDL_MEMORY_STACK_END - 4, 8, &physical) < 0);
+    assert(edl_memory_activate(&memory) < 0);
+    assert(!edl_memory_finish_load(&memory));
     assert(!edl_memory_activate(&memory));
     assert(m.maps == EDL_MEMORY_PAGES);
     for (unsigned i = 0; i < EDL_MEMORY_PAGES; i++)
@@ -91,6 +93,7 @@ int main(void)
     m.unmap_fail_at = -1;
     callbacks = ops(&m);
     assert(!edl_memory_open(&memory, &callbacks));
+    assert(!edl_memory_finish_load(&memory));
     assert(edl_memory_activate(&memory) < 0);
     assert(m.maps == 3 && m.unmaps == 3 && m.releases == 1);
 
@@ -100,6 +103,7 @@ int main(void)
     m.unmap_fail_at = 0;
     callbacks = ops(&m);
     assert(!edl_memory_open(&memory, &callbacks));
+    assert(!edl_memory_finish_load(&memory));
     assert(!edl_memory_activate(&memory));
     assert(edl_memory_close(&memory) < 0);
     assert(memory.poisoned && m.releases == 0);

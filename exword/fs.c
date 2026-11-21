@@ -104,7 +104,8 @@ int edl_load_mapped(const char *path, struct edl_memory *mapping, struct edl_ima
     if (!mapping || !mapping->allocation || mapping->poisoned || mapping->mapped)
         return -1;
     struct io q = {.path = path, .buffer = image, .mapping = mapping};
-    return gint_world_switch(GINT_CALL(load_native, (void *)&q));
+    int rc = gint_world_switch(GINT_CALL(load_native, (void *)&q));
+    return rc < 0 ? rc : edl_memory_finish_load(mapping);
 }
 
 /* Resolve uploaded names using directory entries: internal storage can be

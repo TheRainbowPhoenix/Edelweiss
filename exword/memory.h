@@ -33,6 +33,7 @@ struct edl_memory
     void *allocation;
     uint32_t physical;
     unsigned mapped;
+    int loaded;
     int poisoned;
 };
 
@@ -43,6 +44,8 @@ int edl_memory_open(struct edl_memory *memory, const struct edl_memory_ops *ops)
 /* Translate a virtual destination into the owned physical backing range. */
 int edl_memory_resolve(const struct edl_memory *memory, uint32_t va, size_t size,
                        uint32_t *physical);
+/* Finish code cache coherency and arm the image for mapping. */
+int edl_memory_finish_load(struct edl_memory *memory);
 /* ELF writer: copies to the uncached P2 alias, without touching the TLB. */
 int edl_memory_write(void *memory, uint32_t va, const void *data, size_t size);
 /* Bind all 64 KiB mappings only after ELF validation, copying and fixups. */
