@@ -5,8 +5,29 @@ This codebase is adapted from [MPM](https://git.planet-casio.com/PlaneteCasio/mp
 
 ![EBrew host preview](docs/ebrew-preview.png)
 
-**Experimental hardware build:** This port uses specific upper-RAM arena.
-Untested firmware are rejected, 
+**Experimental hardware build:** The loader now first tries native
+`syscall_ae` selector 3 to obtain a runtime-sized P1/P2 SDRAM arena, even on
+previously unknown firmware. If the syscall fails validation, only the
+fingerprinted legacy firmware arenas remain as fallback. The host's
+exclusive ownership of this scratch memory during all EDL/OS callbacks
+has **not** been confirmed on-device; do not treat a successful cross-build
+as proof that execution is safe on every model.
+
+
+## Hardware compatibility smoke test
+
+Use the **Edelweiss-ja/cn** packages from the successful workflow run for
+this feature branch, **not** the older `edelweiss` release branch.
+Install the single `EDELW` folder and launch its EBrew menu. Then try
+`large-demo.edl`, and exit back to the EX-word shell. On the separate
+example-template test branch, install its `EXMPL` folder to test
+`main.edl` (standard gint drawing, timer, heap, and input).
+
+Start with a device that can be recovered and backed up. A generic
+`syscall_ae` result only proves a plausible RAM span, not its lifetime
+or exclusive use. If the screen freezes, the program crashes, content is
+corrupted, or the shell does not return cleanly, stop testing and report
+the model/ROM version and the behavior.
 
 ## Install and try
 
