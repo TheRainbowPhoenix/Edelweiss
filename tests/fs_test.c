@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 const struct edl_firmware *edl_current;
+struct edl_arena edl_active_arena;
 int edl_resolve_gint(void *ctx, const char *name, uint32_t *address)
 {
     (void)ctx;

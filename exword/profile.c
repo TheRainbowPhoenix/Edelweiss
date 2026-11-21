@@ -4,6 +4,19 @@
 #include <gint/cpu.h>
 
 const struct edl_firmware *edl_current;
+struct edl_arena edl_active_arena;
+
+/* Read-only diagnostic: the returned region can be overwritten by the
+   firmware at any time. Never make it the executable / stack arena. */
+int edl_syscall_ae_probe(struct edl_arena *out)
+{
+    if (!out)
+        return -1;
+    uint32_t bytes = 0;
+    uint32_t address = (uint32_t)edl_os_call(0xae, 3u, (uint32_t)(uintptr_t)&bytes, 0u, 0u);
+    return edl_scratch_layout(address, bytes, out);
+}
+
 static int rom_read(uint32_t address, void *out, size_t size, void *ctx)
 {
     (void)ctx;
@@ -13,8 +26,17 @@ static int rom_read(uint32_t address, void *out, size_t size, void *ctx)
 int edl_profile_init(void)
 {
     edl_current = edl_firmware_detect(rom_read, NULL);
+    memset(&edl_active_arena, 0, sizeof edl_active_arena);
+    /* syscall AE selector 3 exposes shared firmware scratch, not allocated
+       executable memory. A8500 shell routines write to that same range
+       during native I/O. Never use it for EDL image or stack storage.
+       Unknown ROMs fail closed until they have a proven RAM lease. */
     if (!edl_current)
         return -10;
+    edl_active_arena = (struct edl_arena){.arena_start = edl_current->arena_start,
+                                          .arena_end = edl_current->arena_end,
+                                          .stack_start = edl_current->stack_start,
+                                          .stack_end = edl_current->stack_end};
     if (edl_current->arena_start < 0x8c800000)
         return 0;
     /* D6600: reject 8-MiB aliases before touching the extended arena. Each
@@ -69,7 +91,7 @@ void edl_profile_release(void)
 void edl_sync_code(void)
 {
     __asm__ volatile("synco" ::: "memory");
-    for (uint32_t p = edl_current->arena_start; p < edl_current->arena_end; p += 32)
+    for (uint32_t p = edl_active_arena.arena_start; p < edl_active_arena.arena_end; p += 32)
         __asm__ volatile("icbi @%0" ::"r"(p) : "memory");
     __asm__ volatile("synco" ::: "memory");
 }
@@ -82,4 +104,15 @@ static int battery_native(void)
 int edl_battery_state(void)
 {
     return edl_current ? gint_world_switch(GINT_CALL(battery_native)) : -1;
+}
+
+/* Diagnostic only: the active profile must match the *exact* known A8500
+   ROM fingerprints. No mapping, allocation, write or ownership assumption. */
+int edl_a8500_scratch_probe(struct edl_scratch_range *out)
+{
+    if (!out || edl_current != &edl_firmwares[0])
+        return -1;
+    uint32_t size = 0;
+    uint32_t address = (uint32_t)edl_os_call(0xae, 3u, (uint32_t)(uintptr_t)&size, 0u, 0u);
+    return edl_a8500_scratch_validate(address, size, out);
 }

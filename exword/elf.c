@@ -170,7 +170,8 @@ static int file_word(struct relocation *r, uint32_t address, uint32_t *offset)
     }
     return -1;
 }
-static int relocation_marker(struct relocation *r, const unsigned char h[52])
+static int relocation_marker(struct relocation *r, const unsigned char h[52], uint32_t *link_start,
+                             uint32_t *link_end)
 {
     unsigned char strings[40], s[40], name[11], marker[12];
     if (u16(h + 46) != 40 || !r->shnum || r->shnum > 512 ||
@@ -205,8 +206,10 @@ static int relocation_marker(struct relocation *r, const unsigned char h[52])
         if (found++ || u32(s + 4) != 1 || (u32(s + 8) & 2) || u32(s + 20) != 12 ||
             !within(u32(s + 16), 12, r->size) ||
             r->read(r->rctx, u32(s + 16), marker, sizeof marker) || u32(marker) != 0x45445231 ||
-            u32(marker + 4) != r->base || u32(marker + 8) != r->end - r->base)
+            !u32(marker + 8) || u32(marker + 4) > UINT32_MAX - u32(marker + 8))
             return -1;
+        *link_start = u32(marker + 4);
+        *link_end = *link_start + u32(marker + 8);
     }
     return found == 1 ? 0 : -1;
 }
@@ -311,6 +314,47 @@ static int moved_write(void *ctx, uint32_t address, const void *data, size_t siz
     struct relocation *r = ctx;
     return r->write(r->wctx, address + r->delta, data, size);
 }
+int edl_elf_link_range(edl_read_fn read, void *rctx, uint32_t size, uint32_t *start, uint32_t *end)
+{
+    unsigned char h[52];
+    if (!read || !start || !end || size < sizeof h || read(rctx, 0, h, sizeof h) ||
+        memcmp(h, "\177ELF\1\2\1", 7) || u16(h + 16) != 2 || u16(h + 18) != 42 ||
+        u32(h + 20) != 1 || u16(h + 40) != 52 || u16(h + 42) != 32)
+        return -1;
+    struct relocation r = {
+        .read = read, .rctx = rctx, .size = size, .shoff = u32(h + 32), .shnum = u16(h + 48)};
+    return relocation_marker(&r, h, start, end);
+}
+
+int edl_elf_load_to(edl_read_fn read, void *rctx, uint32_t size, uint32_t actual_start,
+                    uint32_t actual_end, edl_write_fn write, void *wctx, edl_resolve_fn resolve,
+                    void *resolve_context, struct edl_image *out)
+{
+    uint32_t link_start, link_end;
+    /* The MMU adapter must own this P0 window before it is executed. */
+    if (!out || !write || actual_start < 0x00100000u || actual_end > 0x80000000u ||
+        actual_start >= actual_end || (actual_start & 0xfffu) ||
+        edl_elf_link_range(read, rctx, size, &link_start, &link_end) || link_start < 0x80000000u ||
+        link_end > 0xa0000000u || link_end - link_start > actual_end - actual_start)
+        return -1;
+    return edl_elf_load_linked(read, rctx, size, link_start, link_end, actual_start, write, wctx,
+                               resolve, resolve_context, out);
+}
+
+int edl_elf_load_auto(edl_read_fn read, void *rctx, uint32_t size, uint32_t arena_start,
+                      uint32_t arena_end, edl_write_fn write, void *wctx, edl_resolve_fn resolve,
+                      void *resolve_context, struct edl_image *out)
+{
+    uint32_t link_start, link_end;
+    /* P1 is directly mapped; do not steal OS UTLB entries or guess RAM. */
+    if (arena_start < 0x80000000u || arena_end > 0xa0000000u || arena_start >= arena_end ||
+        edl_elf_link_range(read, rctx, size, &link_start, &link_end) || link_start < 0x80000000u ||
+        link_end > 0xa0000000u || link_end - link_start > arena_end - arena_start)
+        return -1;
+    return edl_elf_load_linked(read, rctx, size, link_start, link_end, arena_start, write, wctx,
+                               resolve, resolve_context, out);
+}
+
 int edl_elf_load_linked(edl_read_fn read, void *rctx, uint32_t size, uint32_t start, uint32_t end,
                         uint32_t actual, edl_write_fn write, void *wctx, edl_resolve_fn resolve,
                         void *resolve_context, struct edl_image *out)
@@ -345,7 +389,9 @@ int edl_elf_load_linked(edl_read_fn read, void *rctx, uint32_t size, uint32_t st
                            .image = &image,
                            .write = write,
                            .wctx = wctx};
-    if (relocation_marker(&r, h) || relocate(&r, 0))
+    uint32_t marker_start, marker_end;
+    if (relocation_marker(&r, h, &marker_start, &marker_end) || marker_start != start ||
+        marker_end != end || relocate(&r, 0))
         return -1;
     if (edl_elf_load(read, rctx, size, start, end, moved_write, &r, &image) || relocate(&r, 1))
         return -1;

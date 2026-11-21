@@ -34,6 +34,19 @@ int edl_elf_load_at(edl_read_fn read, void *read_context, uint32_t file_size, ui
                     uint32_t link_end, uint32_t actual_start, edl_write_fn write,
                     void *write_context, struct edl_image *image);
 typedef int (*edl_resolve_fn)(void *context, const char *name, uint32_t *address);
+/* Read the preferred P1 link range from the SDK .edl.reloc marker. */
+int edl_elf_link_range(edl_read_fn read, void *read_context, uint32_t file_size,
+                       uint32_t *link_start, uint32_t *link_end);
+/* Relocate to a verified firmware arena, enforcing its bounds before writes. */
+/* Load into a caller-owned virtual window; writes go to physical backing. */
+int edl_elf_load_to(edl_read_fn read, void *read_context, uint32_t file_size,
+                    uint32_t virtual_start, uint32_t virtual_end, edl_write_fn write,
+                    void *write_context, edl_resolve_fn resolve, void *resolve_context,
+                    struct edl_image *image);
+int edl_elf_load_auto(edl_read_fn read, void *read_context, uint32_t file_size,
+                      uint32_t arena_start, uint32_t arena_end, edl_write_fn write,
+                      void *write_context, edl_resolve_fn resolve, void *resolve_context,
+                      struct edl_image *image);
 int edl_elf_load_linked(edl_read_fn read, void *read_context, uint32_t file_size,
                         uint32_t link_start, uint32_t link_end, uint32_t actual_start,
                         edl_write_fn write, void *write_context, edl_resolve_fn resolve,

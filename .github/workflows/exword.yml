@@ -24,6 +24,34 @@ jobs:
           python -m pip install clang-format==21.1.8
           mapfile -t sources < <(git ls-files '*.c' '*.h')
           clang-format --dry-run --Werror "${sources[@]}"
+  host-elf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate firmware profiles, ELF loading and relocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/elf_test.c -o /tmp/test-elf
+          /tmp/test-elf
+          cc -std=c11 -Wall -Wextra -Werror exword/firmware.c tests/firmware_test.c -o /tmp/test-firmware
+          /tmp/test-firmware
+          cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/relocation_test.c -o /tmp/test-relocation
+          /tmp/test-relocation
+  host-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise allocator-owned MMU mapping and teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -Wall -Wextra -Werror exword/memory.c tests/memory_test.c -o /tmp/test-memory
+          /tmp/test-memory
+          cc -std=c11 -Wall -Wextra -Werror exword/scratch.c tests/scratch_test.c -o /tmp/test-scratch
+          /tmp/test-scratch
+          cc -std=c11 -Wall -Wextra -Werror exword/read_cache.c tests/read_cache_test.c -o /tmp/test-cache
+          /tmp/test-cache
   build:
     runs-on: ubuntu-latest
     container:
@@ -40,9 +68,13 @@ jobs:
           /tmp/test-firmware
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/relocation_test.c -o /tmp/test-relocation
           /tmp/test-relocation
+          cc -std=c11 -Wall -Wextra -Werror exword/scratch.c tests/scratch_test.c -o /tmp/test-scratch
+          /tmp/test-scratch
+          cc -std=c11 -Wall -Wextra -Werror exword/read_cache.c tests/read_cache_test.c -o /tmp/test-cache
+          /tmp/test-cache
           cc -std=c11 -Wall -Wextra -Werror -Itests/mock \
             '-DEDL_APPID="EDELW"' -DEDL_ARENA_START=0x8c700000 -DEDL_ARENA_END=0x8c7f0000 \
-            exword/fs.c exword/paths.c exword/elf.c tests/fs_test.c -o /tmp/test-fs
+            exword/fs.c exword/paths.c exword/elf.c exword/memory.c exword/read_cache.c tests/fs_test.c -o /tmp/test-fs
           /tmp/test-fs
           cc -std=c11 -D_DEFAULT_SOURCE -Wall -Wextra -Werror \
             -Dopen=edl_test_open -Dclose=edl_test_close -Dread=edl_test_read \
