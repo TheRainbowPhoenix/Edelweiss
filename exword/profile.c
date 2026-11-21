@@ -91,7 +91,6 @@ int edl_a8500_scratch_probe(struct edl_scratch_range *out)
     if (!out || edl_current != &edl_firmwares[0])
         return -1;
     uint32_t size = 0;
-    uint32_t address =
-        (uint32_t)edl_os_call(0xae, 3u, (uint32_t)(uintptr_t)&size, 0u, 0u);
+    uint32_t address = (uint32_t)edl_os_call(0xae, 3u, (uint32_t)(uintptr_t)&size, 0u, 0u);
     return edl_a8500_scratch_validate(address, size, out);
 }

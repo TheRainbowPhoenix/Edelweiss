@@ -24,6 +24,5 @@ struct edl_scratch_range
 {
     uint32_t p2_address, bytes, aligned_physical, aligned_bytes;
 };
-int edl_a8500_scratch_validate(uint32_t p2_address, uint32_t bytes,
-                               struct edl_scratch_range *out);
+int edl_a8500_scratch_validate(uint32_t p2_address, uint32_t bytes, struct edl_scratch_range *out);
 #endif
