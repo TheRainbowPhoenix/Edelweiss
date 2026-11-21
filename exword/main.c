@@ -145,16 +145,13 @@ static void loading(void)
     dtext(DWIDTH - 82, DHEIGHT - 16, 0xbdf7, "loading...");
     dupdate();
 }
-/* Discard the launch/exit gesture through its release. Clearing the queue
-   alone leaves held keys and the pen active in the next application. */
+/* Discard queued launch/exit gestures without blocking the next application.
+   The touch driver's last scan is cached; it is not guaranteed to refresh
+   while we wait here. Polling its old pen_down state can falsely reject every
+   EDL launch with -21, as reported on XD-D6600. Holding keys during launch
+   must never prevent the already-validated ELF from starting. */
 static void release_input(void)
 {
-    struct exword_touch_debug touch;
-    do
-    {
-        clearevents();
-        touch_exword_get_last_scan(&touch);
-    } while (keydown_any(KEY_EXE, KEY_EXIT, KEY_ACON, KEY_MENU, 0) || touch.pen_down);
     clearevents();
 }
 static void message(const char *title, const char *detail, int rc)
@@ -163,8 +160,7 @@ static void message(const char *title, const char *detail, int rc)
     dtext(20, 20, C_BLACK, title);
     dtext(20, 50, C_BLACK, detail);
     dprint(20, 80, C_BLACK, "Result %d   ELF arena %08x..%08x", rc,
-           (unsigned)(edl_current ? edl_current->arena_start : 0),
-           (unsigned)(edl_current ? edl_current->arena_end : 0));
+           (unsigned)edl_active_arena.arena_start, (unsigned)edl_active_arena.arena_end);
     dtext(20, 110, C_BLACK, "Press a key to continue.");
     dupdate();
     struct edl_event e;
@@ -199,16 +195,16 @@ int main(void)
     {
         message(profile_rc == -10 ? "Edelweiss: unsupported firmware"
                                   : "Edelweiss: RAM check failed",
-                profile_rc == -10 ? "Known ROMs: XD-A8500 and XD-D6600 CY436."
+                profile_rc == -10 ? "No compatible syscall AE buffer or legacy profile."
                                   : "Extended payload RAM is occupied or mirrored.",
                 profile_rc);
         touch_exword_quit();
         return -2;
     }
-    api.arena_start = edl_current->arena_start;
-    api.arena_end = edl_current->arena_end;
-    api.stack_start = edl_current->stack_start;
-    api.stack_end = edl_current->stack_end;
+    api.arena_start = edl_active_arena.arena_start;
+    api.arena_end = edl_active_arena.arena_end;
+    api.stack_start = edl_active_arena.stack_start;
+    api.stack_end = edl_active_arena.stack_end;
     api.syscall_dispatcher = *(volatile uint32_t *)0x74000000;
     if (edl_boot_path(boot))
     {

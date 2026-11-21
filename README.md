@@ -5,8 +5,35 @@ This codebase is adapted from [MPM](https://git.planet-casio.com/PlaneteCasio/mp
 
 ![EBrew host preview](docs/ebrew-preview.png)
 
-**Experimental hardware build:** This port uses specific upper-RAM arena.
-Untested firmware are rejected, 
+**Experimental hardware build:** The generic `syscall_ae` scratch
+execution path has been **disabled**. The A8500 ROM demonstrably writes to
+that shared scratch during native work. Executing from it is unsafe. Only
+the fingerprinted A8500/D6600 P1 RAM arenas remain active until a genuine
+native memory lease can be verified. Cross-build success is not proof of
+device safety.
+
+
+## Hardware compatibility smoke test
+
+**XD-D6600 launch regression (2026-11-21):** A formerly bounded
+input-release check read the touch driver's cached pen-down state without
+forcing a new scan. On actual D6600 hardware this produced `Result -21`
+before *any* ELF entrypoint was called. Input release is no longer a
+precondition for launching an EDL: only queued gestures are cleared.
+
+
+Use the **Edelweiss-ja/cn** packages from the successful workflow run for
+this feature branch, **not** the older `edelweiss` release branch.
+Install the single `EDELW` folder and launch its EBrew menu. Then try
+`large-demo.edl`, and exit back to the EX-word shell. On the separate
+example-template test branch, install its `EXMPL` folder to test
+`main.edl` (standard gint drawing, timer, heap, and input).
+
+Start with a device that can be recovered and backed up. A generic
+`syscall_ae` result only proves a plausible RAM span, not its lifetime
+or exclusive use. If the screen freezes, the program crashes, content is
+corrupted, or the shell does not return cleanly, stop testing and report
+the model/ROM version and the behavior.
 
 ## Install and try
 

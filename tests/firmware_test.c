@@ -32,5 +32,14 @@ int main(void)
     }
     assert(!edl_firmware_detect(NULL, NULL));
     assert(edl_firmwares[1].arena_start >= 0x8c800000);
-    puts("Firmware identification and per-model memory bounds passed");
+    struct edl_scratch_range scratch = {0};
+    assert(!edl_a8500_scratch_validate(0xac3c2018u, 0x100004u, &scratch));
+    assert(scratch.p2_address == 0xac3c2018u);
+    assert(scratch.bytes == 0x100004u);
+    assert(scratch.aligned_physical == 0x0c3d0000u);
+    assert(scratch.aligned_bytes >= 0xf0000u);
+    assert(edl_a8500_scratch_validate(0xac3c2018u, 0xf0000u, &scratch) < 0);
+    assert(edl_a8500_scratch_validate(0x8c3c2018u, 0x100004u, &scratch) < 0);
+    assert(edl_a8500_scratch_validate(0xac3c2018u, 0x100004u, NULL) < 0);
+    puts("Firmware identification, memory bounds, scratch syscall contract passed");
 }

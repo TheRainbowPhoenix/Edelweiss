@@ -1,14 +1,21 @@
 #include "host.h"
+#include "memory.h"
+#include "read_cache.h"
 #include <gint/exword.h>
 #include <gint/gint.h>
 #include <string.h>
 #include <limits.h>
+
+/* Only one ELF/metadata file is processed at a time in the native
+   world. Put the 8 KiB read cache in D01 BSS, not on the OS call stack. */
+static struct edl_read_cache elf_cache;
 
 struct io
 {
     const char *path;
     uint32_t offset, size;
     void *buffer;
+    struct edl_memory *mapping;
 };
 static int read_exact(void *ctx, uint32_t off, void *dst, size_t n)
 {
@@ -41,7 +48,7 @@ int edl_read(const char *path, uint32_t offset, void *dst, uint32_t size)
 {
     if (size > INT_MAX)
         return -1;
-    struct io q = {path, offset, size, dst};
+    struct io q = {.path = path, .offset = offset, .size = size, .buffer = dst};
     return gint_world_switch(GINT_CALL(read_native, (void *)&q));
 }
 static int metadata_native(struct io *q)
@@ -50,9 +57,13 @@ static int metadata_native(struct io *q)
     if (fd < 0)
         return fd;
     int size = exword_sys_get_filesize(fd);
-    int rc = size < 0 ? size
-                      : edl_elf_metadata(read_exact, &fd, (uint32_t)size, q->buffer,
-                                         sizeof(struct edl_metadata));
+    int rc = size;
+    if (size >= 0)
+    {
+        edl_read_cache_init(&elf_cache, read_exact, &fd, (uint32_t)size);
+        rc = edl_elf_metadata(edl_read_cache_read, &elf_cache, (uint32_t)size, q->buffer,
+                              sizeof(struct edl_metadata));
+    }
     int close = exword_sys_close(fd);
     if (rc < 0)
         return rc;
@@ -78,10 +89,21 @@ static int load_native(struct io *q)
     if (fd < 0)
         return fd;
     int size = exword_sys_get_filesize(fd);
-    int rc = size < 0 ? size
-                      : edl_elf_load_auto(read_exact, &fd, (uint32_t)size, edl_current->arena_start,
-                                          edl_current->arena_end, write_physical, NULL,
-                                          edl_resolve_gint, NULL, q->buffer);
+    int rc;
+    if (size < 0)
+        rc = size;
+    else
+    {
+        edl_read_cache_init(&elf_cache, read_exact, &fd, (uint32_t)size);
+        if (q->mapping)
+            rc = edl_elf_load_to(edl_read_cache_read, &elf_cache, (uint32_t)size, EDL_MEMORY_VBASE,
+                                 EDL_MEMORY_IMAGE_END, edl_memory_write, q->mapping,
+                                 edl_resolve_gint, NULL, q->buffer);
+        else
+            rc = edl_elf_load_auto(edl_read_cache_read, &elf_cache, (uint32_t)size,
+                                   edl_active_arena.arena_start, edl_active_arena.arena_end,
+                                   write_physical, NULL, edl_resolve_gint, NULL, q->buffer);
+    }
     int close = exword_sys_close(fd);
     return rc < 0 ? rc : close < 0 ? close : 0;
 }
@@ -89,6 +111,14 @@ int edl_load(const char *path, struct edl_image *image)
 {
     struct io q = {.path = path, .buffer = image};
     return gint_world_switch(GINT_CALL(load_native, (void *)&q));
+}
+int edl_load_mapped(const char *path, struct edl_memory *mapping, struct edl_image *image)
+{
+    if (!mapping || !mapping->allocation || mapping->poisoned || mapping->mapped)
+        return -1;
+    struct io q = {.path = path, .buffer = image, .mapping = mapping};
+    int rc = gint_world_switch(GINT_CALL(load_native, (void *)&q));
+    return rc < 0 ? rc : edl_memory_finish_load(mapping);
 }
 
 /* Resolve uploaded names using directory entries: internal storage can be
