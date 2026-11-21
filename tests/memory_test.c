@@ -85,9 +85,13 @@ static int release_window(void *context, uint32_t va, uint32_t size)
 }
 static struct edl_memory_ops ops(struct mock *m)
 {
-    return (struct edl_memory_ops){
-        .context = m, .alloc = allocate, .free = release, .map = map, .unmap = unmap,
-        .acquire_window = acquire_window, .release_window = release_window};
+    return (struct edl_memory_ops){.context = m,
+                                   .alloc = allocate,
+                                   .free = release,
+                                   .map = map,
+                                   .unmap = unmap,
+                                   .acquire_window = acquire_window,
+                                   .release_window = release_window};
 }
 int main(void)
 {
