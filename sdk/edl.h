@@ -11,26 +11,46 @@
 #define EDL_EXIT 0
 #define EDL_LAUNCH 1
 
-enum edl_key { EDL_UP=1, EDL_DOWN, EDL_LEFT, EDL_RIGHT, EDL_OK,
-    EDL_BACK, EDL_REFRESH, EDL_TOUCH, EDL_HOME };
-struct edl_event { int key, x, y; };
-struct edl_status {
+enum edl_key
+{
+    EDL_UP = 1,
+    EDL_DOWN,
+    EDL_LEFT,
+    EDL_RIGHT,
+    EDL_OK,
+    EDL_BACK,
+    EDL_REFRESH,
+    EDL_TOUCH,
+    EDL_HOME
+};
+struct edl_event
+{
+    int key, x, y;
+};
+struct edl_status
+{
     uint16_t year;
     uint8_t month, day, hours, minutes, seconds; /* month is 1..12 */
-    int8_t battery; /* -1 unknown, 0 low, 1 normal; not a percentage */
+    int8_t battery;                              /* -1 unknown, 0 low, 1 normal; not a percentage */
 };
-struct edl_record { char path[EDL_PATH_MAX]; char title[EDL_TITLE_MAX]; };
+struct edl_record
+{
+    char path[EDL_PATH_MAX];
+    char title[EDL_TITLE_MAX];
+};
 /* Serialized big-endian in a non-allocated .edl.meta ELF section. */
-struct edl_metadata {
+struct edl_metadata
+{
     uint32_t magic, version;
     char title[32], description[64];
-    uint16_t icon[32*32];
+    uint16_t icon[32 * 32];
 };
 
 /* An EDL runs in the resident gint world. All pointers live for the current
    invocation only. OS APIs MUST run through os_call or the provided services.
    image_path is the full native path, not a drive-relative name. */
-struct edl_api {
+struct edl_api
+{
     uint32_t magic, version, size;
     uint32_t width, height;
     uintptr_t syscall_dispatcher;
@@ -58,5 +78,5 @@ struct edl_api {
 };
 
 int edl_main(const struct edl_api *api);
-#define EDL_METADATA __attribute__((used,section(".edl.meta"),aligned(4)))
+#define EDL_METADATA __attribute__((used, section(".edl.meta"), aligned(4)))
 #endif

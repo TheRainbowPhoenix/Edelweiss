@@ -1,7 +1,6 @@
 include(GenerateD01)
 include(GenerateEXWORDPackage)
 find_package(Gint 2.11 REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(EDL_APPID "EDELW" CACHE STRING "Five-character installation ID for the embeddable D01")
 if(NOT EDL_APPID MATCHES "^[A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]$")
@@ -22,6 +21,12 @@ target_link_libraries(edelweiss PRIVATE Gint::Gint)
 set_target_properties(edelweiss PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 generate_d01(TARGET edelweiss OUTPUT "${CMAKE_BINARY_DIR}/edelweiss.d01" MODULE edelw)
 
+# Templates can build just the resident bootstrap and provide their own ELF.
+if(NOT EDL_BUILD_PAYLOADS)
+  return()
+endif()
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/ebrew_assets.h"
   "${CMAKE_CURRENT_BINARY_DIR}/assets/wallpaper.c"
   "${CMAKE_CURRENT_BINARY_DIR}/assets/splash.c"
@@ -37,6 +42,10 @@ foreach(PAYLOAD IN ITEMS EBrew large-demo)
   target_include_directories(${PAYLOAD} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/assets")
   add_dependencies(${PAYLOAD} edl_assets)
 endforeach()
+
+if(NOT EDL_BUILD_PACKAGES)
+  return()
+endif()
 
 if(NOT DEFINED EXWORD_METADATA_SOURCE)
   message(FATAL_ERROR "Set EXWORD_METADATA_SOURCE to the EX-word HTML metadata repository")

@@ -2,8 +2,13 @@
 #define EDL_FIRMWARE_H
 #include <stdint.h>
 #include <stddef.h>
-struct edl_fingerprint { uint32_t address; unsigned char bytes[16]; };
-struct edl_firmware {
+struct edl_fingerprint
+{
+    uint32_t address;
+    unsigned char bytes[16];
+};
+struct edl_firmware
+{
     const char *name;
     uint32_t arena_start, arena_end, stack_start, stack_end, battery;
     struct edl_fingerprint checks[3];

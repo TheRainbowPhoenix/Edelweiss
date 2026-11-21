@@ -16,6 +16,13 @@ jobs:
       image: ghcr.io/therainbowphoenix/gint-docker:main
     steps:
       - uses: actions/checkout@v4
+      - name: Check C formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --target /tmp/format-tools clang-format==21.1.8
+          mapfile -t sources < <(git ls-files '*.c' '*.h')
+          /tmp/format-tools/clang_format/data/bin/clang-format --dry-run --Werror "${sources[@]}"
       - name: Check ELF parser, loading and filesystem discovery
         shell: bash
         run: |
