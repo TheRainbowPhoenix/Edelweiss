@@ -124,8 +124,8 @@ static void fixture_at(uint32_t base)
 static int load_auto(void)
 {
     struct edl_image image;
-    return edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096,
-                             write_memory, NULL, NULL, NULL, &image);
+    return edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096, write_memory,
+                             NULL, NULL, NULL, &image);
 }
 static int load(void)
 {
@@ -239,8 +239,8 @@ int main(void)
            writes == 0);
     import_fixture();
     struct edl_image auto_image;
-    assert(!edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096,
-                               write_memory, NULL, resolve_service, NULL, &auto_image));
+    assert(!edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096, write_memory,
+                              NULL, resolve_service, NULL, &auto_image));
     assert(value(4) == 0x70001008 && auto_image.entry == ACTUAL);
     import_fixture();
     assert(!edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, ACTUAL,

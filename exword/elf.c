@@ -170,8 +170,8 @@ static int file_word(struct relocation *r, uint32_t address, uint32_t *offset)
     }
     return -1;
 }
-static int relocation_marker(struct relocation *r, const unsigned char h[52],
-                             uint32_t *link_start, uint32_t *link_end)
+static int relocation_marker(struct relocation *r, const unsigned char h[52], uint32_t *link_start,
+                             uint32_t *link_end)
 {
     unsigned char strings[40], s[40], name[11], marker[12];
     if (u16(h + 46) != 40 || !r->shnum || r->shnum > 512 ||
@@ -314,36 +314,30 @@ static int moved_write(void *ctx, uint32_t address, const void *data, size_t siz
     struct relocation *r = ctx;
     return r->write(r->wctx, address + r->delta, data, size);
 }
-int edl_elf_link_range(edl_read_fn read, void *rctx, uint32_t size, uint32_t *start,
-                       uint32_t *end)
+int edl_elf_link_range(edl_read_fn read, void *rctx, uint32_t size, uint32_t *start, uint32_t *end)
 {
     unsigned char h[52];
     if (!read || !start || !end || size < sizeof h || read(rctx, 0, h, sizeof h) ||
         memcmp(h, "\177ELF\1\2\1", 7) || u16(h + 16) != 2 || u16(h + 18) != 42 ||
         u32(h + 20) != 1 || u16(h + 40) != 52 || u16(h + 42) != 32)
         return -1;
-    struct relocation r = {.read = read,
-                           .rctx = rctx,
-                           .size = size,
-                           .shoff = u32(h + 32),
-                           .shnum = u16(h + 48)};
+    struct relocation r = {
+        .read = read, .rctx = rctx, .size = size, .shoff = u32(h + 32), .shnum = u16(h + 48)};
     return relocation_marker(&r, h, start, end);
 }
 
-int edl_elf_load_auto(edl_read_fn read, void *rctx, uint32_t size,
-                      uint32_t arena_start, uint32_t arena_end, edl_write_fn write,
-                      void *wctx, edl_resolve_fn resolve, void *resolve_context,
-                      struct edl_image *out)
+int edl_elf_load_auto(edl_read_fn read, void *rctx, uint32_t size, uint32_t arena_start,
+                      uint32_t arena_end, edl_write_fn write, void *wctx, edl_resolve_fn resolve,
+                      void *resolve_context, struct edl_image *out)
 {
     uint32_t link_start, link_end;
     /* P1 is directly mapped; do not steal OS UTLB entries or guess RAM. */
     if (arena_start < 0x80000000u || arena_end > 0xa0000000u || arena_start >= arena_end ||
-        edl_elf_link_range(read, rctx, size, &link_start, &link_end) ||
-        link_start < 0x80000000u || link_end > 0xa0000000u ||
-        link_end - link_start > arena_end - arena_start)
+        edl_elf_link_range(read, rctx, size, &link_start, &link_end) || link_start < 0x80000000u ||
+        link_end > 0xa0000000u || link_end - link_start > arena_end - arena_start)
         return -1;
-    return edl_elf_load_linked(read, rctx, size, link_start, link_end, arena_start,
-                               write, wctx, resolve, resolve_context, out);
+    return edl_elf_load_linked(read, rctx, size, link_start, link_end, arena_start, write, wctx,
+                               resolve, resolve_context, out);
 }
 
 int edl_elf_load_linked(edl_read_fn read, void *rctx, uint32_t size, uint32_t start, uint32_t end,
