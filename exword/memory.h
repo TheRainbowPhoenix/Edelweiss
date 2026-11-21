@@ -13,16 +13,22 @@
 #define EDL_MEMORY_STACK_END (EDL_MEMORY_VBASE + EDL_MEMORY_BYTES)
 #define EDL_MEMORY_PAGES (EDL_MEMORY_BYTES / EDL_MEMORY_PAGE)
 
-/* All callbacks are supplied by the platform. alloc() must return an
-   owned, physically contiguous P1 RAM block. map()/unmap() must reserve and
-   restore TLB ownership; neither function may invalidate OS-owned slots.
-   Returning success from unmap() certifies that both UTLB and ITLB aliases
-   have been removed. A platform must NOT use the tiny resident gint heap. */
+/* All callbacks are supplied by the platform. alloc() must reserve RAM with
+   a matching free(). If translate is NULL, alloc must return contiguous P1
+   physical RAM; otherwise translate must resolve each 4 KiB virtual page in
+   the allocator's original OS world, enabling non-adjacent 64 KiB extents.
+   Each 64 KiB backing extent MUST be physically contiguous and aligned.
+   map()/unmap() must own the entire P0 virtual range and preserve all OS
+   and gint mappings; unmap success certifies UTLB AND ITLB removal.
+   The small resident gint heap is NOT suitable for backing a 1 MiB image. */
 struct edl_memory_ops
 {
     void *context;
     void *(*alloc)(void *context, size_t size);
     void (*free)(void *context, void *allocation);
+    /* Optional: translate 4 KiB-aligned OS VA to 4 KiB-aligned RAM PA.
+       Called before leaving OS world; no TLB changes are permitted here. */
+    int (*translate)(void *context, uint32_t va, uint32_t *physical);
     int (*map)(void *context, uint32_t va, uint32_t physical, uint32_t size);
     int (*unmap)(void *context, uint32_t va, uint32_t size);
 };
@@ -32,6 +38,7 @@ struct edl_memory
     struct edl_memory_ops ops;
     void *allocation;
     uint32_t physical;
+    uint32_t physical_pages[EDL_MEMORY_PAGES];
     unsigned mapped;
     int loaded;
     int poisoned;
@@ -41,7 +48,8 @@ struct edl_memory
 int edl_memory_physical(void *allocation, size_t allocated_bytes, uint32_t *physical);
 /* Reserve OS-owned RAM (not yet executable). The caller must keep it pinned. */
 int edl_memory_open(struct edl_memory *memory, const struct edl_memory_ops *ops);
-/* Translate a virtual destination into the owned physical backing range. */
+/* Resolve a destination within one 64 KiB backing extent. Cross-page
+   accesses must be split by the caller (edl_memory_write does this). */
 int edl_memory_resolve(const struct edl_memory *memory, uint32_t va, size_t size,
                        uint32_t *physical);
 /* Finish code cache coherency and arm the image for mapping. */

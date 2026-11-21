@@ -13,20 +13,24 @@ TLB lease. It is **not enabled** on hardware by this PR.
 | `003f0000..003f7fff` | gap |
 | `003f8000..003fffff` | 32 KiB stack with canary |
 
-These are P0 virtual addresses, not physical addresses. The backend allocates
-`0x10ffff` bytes and aligns the usable 1 MiB down to sixteen 64 KiB mappings
-from **one owned, physically contiguous RAM allocation**. This deliberately
-trades up to 64 KiB of allocation slack for sixteen UTLB slots, rather than
-requiring 256 separate 4 KiB mappings. `malloc()` alone does not reserve a
-virtual address or guarantee physical contiguity; the platform allocator must
-attest to the latter. The common EX-word gint allocator is only resident RAM
-and **cannot be used as the 1 MiB backing allocator**.
+These are P0 virtual addresses, not physical addresses. The backend requests
+`0x10ffff` bytes and aligns the 1 MiB virtual backing to sixteen 64 KiB units.
+It can use one contiguous P1 allocation, or an OS-virtual allocation with a
+verified per-4-KiB translation callback. Each mapped 64 KiB frame still needs
+to be physically aligned and contiguous, but the sixteen frames may be
+**non-adjacent** in physical RAM. This deliberately trades up to 64 KiB of
+allocation slack for sixteen UTLB slots, rather than requiring 256 separate
+4 KiB mappings. `malloc()` does not reserve our fixed P0 destination or
+guarantee any particular physical page layout.
 
 An EX-word port supplies `edl_memory_ops`:
 
-1. `alloc/free`: allocate and pin OS-managed, physically contiguous RAM,
-   returning a valid **P1** pointer. Free with precisely the matching OS API,
-   never while an executable TLB or ITLB alias is installed.
+1. `alloc/free`: allocate and pin OS-managed RAM. A directly accessible P1
+   block may omit `translate`, and then **must** be physically contiguous.
+   A virtual OS allocation can supply `translate` to validate every 4 KiB
+   physical subpage within each 64 KiB backing unit **while OS mappings are
+   active**. Free with precisely the matching OS API, never while a UTLB or
+   ITLB alias is installed.
 2. `map`: reserve the P0 window and install a 64 KiB UTLB entry. The
    callback must not overwrite currently active OS/gint mappings. Use a
    *verified hardware-specific* MMU driver with a slot lease, proper
@@ -57,6 +61,13 @@ It is not safe to enter P0 until we have either a reserved, non-evictable
 set of sixteen slots **across OS calls** or an explicit restore/refill
 integration on every relevant world transition. Ordinary `malloc()` cannot
 solve that.
+
+The referenced `libdataplus-ex` does not expose a host heap syscall in
+`include/syscalls/syscalls.h`; its `__libexword_malloc` uses a local
+`sbrk` that stops at `0x74008000`. This is the small D01 virtual window,
+**not** a 1 MiB OS-managed heap. An OS-native allocator still needs a
+verified dispatcher ID/function and matching release ABI, rather than an
+invented syscall number.
 
 Device-specific enablement therefore requires a verified OS allocator,
 address-space reservation (including collision checks), TLB lease and
