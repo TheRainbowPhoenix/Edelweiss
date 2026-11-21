@@ -31,7 +31,7 @@ static int map(void *context, uint32_t va, uint32_t pa, uint32_t bytes)
     assert(bytes == EDL_MEMORY_PAGE);
     if (m->maps == m->map_fail_at)
         return -1;
-    assert(m->maps < EDL_MEMORY_PAGES);
+    assert(m->maps < (int)EDL_MEMORY_PAGES);
     m->mapped_va[m->maps] = va;
     m->mapped_pa[m->maps] = pa;
     m->maps++;
