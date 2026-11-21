@@ -1,6 +1,7 @@
 #include "host.h"
 #include <gint/display.h>
 #include <gint/keyboard.h>
+#include <gint/drivers/touch.h>
 #include <gint/gint.h>
 #include <gint/rtc.h>
 #include <string.h>
