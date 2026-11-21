@@ -4,8 +4,14 @@
 
 An `.edl` is a static ELF32, big-endian, `EM_SH` (42), `ET_EXEC` image.
 The ELF entry receives `const struct edl_api *` in r4 and returns an integer
-through the normal SH GCC ABI. It is linked for the XD-A8500 physical P1 arena,
-not for the native D01 window. P1 accesses bypass address translation even
+through the normal SH GCC ABI. The SDK links to an **initial preferred P1
+base** (the XD-A8500 arena by default), not the native D01 window. At load
+time the resident reads the `.edl.reloc` link-range marker, verifies that
+the declared range fits the detected firmware's backing arena, and applies
+SH relocations and any resident imports. The same EDL can therefore run at a
+different verified P1 address without relinking. The file must retain its
+SDK relocation marker and `--emit-relocs` entries. P1 accesses bypass address
+translation even
 while the MMU remains enabled. This removes the shell's 128 KiB image-buffer
 limit without disabling the MMU or changing the OS's mapping descriptors.
 
@@ -18,6 +24,25 @@ filesystem and syscall access, then return to the same gint world.
 Payloads currently use the supplied display/input/filesystem services. Linking
 a second, unmodified gint kernel into the payload is not supported. Existing
 G3A and D01 files must be rebuilt for this ABI; a filename change is insufficient.
+
+## Relocation is not universal device support
+
+The runtime load base is a **firmware-owned decision**; an EDL's link base
+is not a physical allocation request. For example, an EDL built at
+`0x8c900000` can be relocated into either known ROM32A arena provided
+the complete declared link range fits. Malformed markers, unsupported
+relocation kinds, and undersized arenas are rejected before payload writes.
+
+This adopts the useful relocation idea from the older `dynload` G3A
+experiment, but it does **not** copy that loader's UTLB layout or replace
+MMUCR. The NTOS_SH4 loader similarly separates relocation from mapping;
+its paging and VBR handoff experiments are not generic EX-word driver code.
+
+"Any device" also needs a working native bootstrap, CPU/ABI compatibility,
+verified RAM ownership, cache coordination, firmware-specific OS services
+and safe driver/context handoff. The two current EX-word ROM profiles are
+not proof that arbitrary EX-word firmware or other Casio platforms work.
+An unknown firmware must continue to fail closed.
 
 ## ROM32A memory profile
 
@@ -36,11 +61,10 @@ not a proven OS allocation contract. Its suitability, including asynchronously
 used buffers, needs hardware validation. Identical SH7305 CPUs do not establish
 identical firmware RAM ownership.
 
-`profile.c` compares 16 instruction bytes at each of `8004634c`, `80303960`,
-and `802d89bc` before loading. These identify the inspected ROM32A loader,
-dispatcher handoff, and active-content query. Other firmware is rejected;
-adding D6600 execution requires its own verified profile. `crd1` discovery is
-already implemented independently of the current profile.
+`firmware.c` checks three 16-byte instruction fingerprints before
+selecting a supported ROM32A profile. XD-A8500 and XD-D6600 CY436 use
+different candidate P1 arenas, neither an OS allocation guarantee. Unknown
+firmware is rejected. `crd1` discovery is independent of the profile.
 
 The loader flushes operand aliases before writing ELF bytes through uncached
 P2, synchronizes, and invalidates instruction lines before entering through

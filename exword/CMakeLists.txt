@@ -10,7 +10,8 @@ endif()
 include(../sdk/GenerateEDL.cmake)
 
 add_executable(edelweiss main.c fs.c paths.c profile.c firmware.c gint_exports.c native.S elf.c)
-target_compile_definitions(edelweiss PRIVATE EDL_APPID="${EDL_APPID}")
+target_compile_definitions(edelweiss PRIVATE
+  EDL_APPID="${EDL_APPID}" EDL_ARENA_START=${EDL_ARENA_START} EDL_ARENA_END=${EDL_ARENA_END})
 target_compile_options(edelweiss PRIVATE -Wall -Wextra -Os -flto=auto
   -fno-pic -fno-pie -fno-stack-protector)
 target_link_options(edelweiss PRIVATE -flto=auto -nostdlib -no-pie
