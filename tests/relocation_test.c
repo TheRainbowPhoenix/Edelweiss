@@ -29,6 +29,16 @@ static int read_file(void *ctx, uint32_t at, void *out, size_t n)
     memcpy(out, file + at, n);
     return 0;
 }
+#define P0_ACTUAL 0x71000000u
+static int write_p0(void *ctx, uint32_t at, const void *data, size_t n)
+{
+    (void)ctx;
+    assert(at >= P0_ACTUAL && at < P0_ACTUAL + sizeof memory);
+    assert(n <= P0_ACTUAL + sizeof memory - at);
+    memcpy(memory + at - P0_ACTUAL, data, n);
+    writes++;
+    return 0;
+}
 static int write_memory(void *ctx, uint32_t at, const void *data, size_t n)
 {
     (void)ctx;
@@ -172,6 +182,17 @@ int main(void)
     assert(link_start == BASE && link_end == BASE + 4096);
     assert(!load_auto());
     assert(value(0) == ACTUAL + 20 && value(4) == 0xa4050000);
+    fixture();
+    struct edl_image mapped_image;
+    assert(!edl_elf_load_to(read_file, NULL, sizeof file, P0_ACTUAL, P0_ACTUAL + 4096, write_p0,
+                            NULL, NULL, NULL, &mapped_image));
+    assert(mapped_image.entry == P0_ACTUAL);
+    assert(value(0) == P0_ACTUAL + 20 && value(4) == 0xa4050000);
+    fixture();
+    writes = 0;
+    assert(edl_elf_load_to(read_file, NULL, sizeof file, P0_ACTUAL, P0_ACTUAL + 1024, write_p0,
+                           NULL, NULL, NULL, &mapped_image) < 0 &&
+           writes == 0);
     fixture_at(0x8c900000u);
     assert(!edl_elf_link_range(read_file, NULL, sizeof file, &link_start, &link_end));
     assert(link_start == 0x8c900000u && link_end == link_start + 4096);
