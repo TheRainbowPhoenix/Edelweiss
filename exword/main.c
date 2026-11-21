@@ -60,6 +60,10 @@ static int wait_timeout(struct edl_event *out, unsigned timeout_ms)
         }
         if (e.type != KEYEV_DOWN && e.type != KEYEV_HOLD)
             continue;
+        /* Only navigation repeats; activation and exit require a fresh press. */
+        if (e.type == KEYEV_HOLD && e.key != KEY_UP && e.key != KEY_DOWN && e.key != KEY_LEFT &&
+            e.key != KEY_RIGHT)
+            continue;
         switch (e.key)
         {
         case KEY_UP:
@@ -135,6 +139,24 @@ static int request_launch(const char *path)
     memcpy(next, path, n + 1);
     return 0;
 }
+static void loading(void)
+{
+    dclear(C_WHITE);
+    dtext(DWIDTH - 82, DHEIGHT - 16, 0xbdf7, "loading...");
+    dupdate();
+}
+/* Discard the launch/exit gesture through its release. Clearing the queue
+   alone leaves held keys and the pen active in the next application. */
+static void release_input(void)
+{
+    struct exword_touch_debug touch;
+    do
+    {
+        clearevents();
+        touch_exword_get_last_scan(&touch);
+    } while (keydown_any(KEY_EXE, KEY_EXIT, KEY_ACON, KEY_MENU, 0) || touch.pen_down);
+    clearevents();
+}
 static void message(const char *title, const char *detail, int rc)
 {
     dclear(C_WHITE);
@@ -171,6 +193,7 @@ static struct edl_api api = {
 
 int main(void)
 {
+    loading();
     int profile_rc = edl_profile_init();
     if (profile_rc)
     {
@@ -205,6 +228,7 @@ int main(void)
         for (uint32_t p = api.arena_start; p < api.stack_end; p += 32)
             __asm__ volatile("ocbp @%0" ::"r"(p) : "memory");
         __asm__ volatile("synco" ::: "memory");
+        loading();
         struct edl_image image;
         next[0] = 0;
         int rc = edl_load(active, &image);
@@ -212,7 +236,7 @@ int main(void)
         {
             edl_sync_code();
             *(volatile uint32_t *)(uintptr_t)api.stack_start = 0x45444c53;
-            clearevents();
+            release_input();
             rc = edl_invoke(image.entry, &api, api.stack_end);
             edl_gint_cleanup();
             if (*(volatile uint32_t *)(uintptr_t)api.stack_start != 0x45444c53)
@@ -220,7 +244,7 @@ int main(void)
                 message("Edelweiss: stack overflow", active, -12);
                 break;
             }
-            clearevents();
+            release_input();
             if (rc == EDL_LAUNCH && next[0])
             {
                 memcpy(active, next, sizeof active);
