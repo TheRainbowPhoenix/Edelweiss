@@ -3,6 +3,8 @@
 #include <gint/display.h>
 #include <gint/keyboard.h>
 #include <stdint.h>
+#include <setjmp.h>
+#include <stdlib.h>
 
 #ifndef EDL_HEAP_SIZE
 #define EDL_HEAP_SIZE (256 * 1024)
@@ -12,6 +14,19 @@ static kmalloc_arena_t arena;
 extern void (*edl_ctors_start[])(void), (*edl_ctors_end[])(void);
 extern void (*edl_dtors_start[])(void), (*edl_dtors_end[])(void);
 int main(void);
+extern void edl_gint_cleanup(void);
+static jmp_buf return_point;
+static int exit_code, finalizing;
+_Noreturn void _Exit(int code)
+{
+    exit_code = code;
+    edl_gint_cleanup();
+    longjmp(return_point, 1);
+}
+_Noreturn void abort(void)
+{
+    _Exit(-2);
+}
 __attribute__((used, section(".edl.gint"))) const uint32_t edl_gint_marker[] = {0x47494e54, 1};
 __attribute__((section(".text.edl_entry"))) int edl_entry(const struct edl_api *api)
 {
@@ -26,11 +41,19 @@ __attribute__((section(".text.edl_entry"))) int edl_entry(const struct edl_api *
         return -1;
     dwindow_set((struct dwindow){0, 0, api->width, api->height});
     clearevents();
-    for (void (**p)(void) = edl_ctors_start; p < edl_ctors_end; p++)
-        (*p)();
-    int rc = main();
-    for (void (**p)(void) = edl_dtors_end; p > edl_dtors_start;)
-        (*--p)();
+    if (!setjmp(return_point))
+    {
+        for (void (**p)(void) = edl_ctors_start; p < edl_ctors_end; p++)
+            (*p)();
+        exit_code = main();
+    }
+    edl_gint_cleanup();
+    if (!finalizing)
+    {
+        finalizing = 1;
+        for (void (**p)(void) = edl_dtors_end; p > edl_dtors_start;)
+            (*--p)();
+    }
     kmalloc_remove_arena(&arena);
-    return rc;
+    return exit_code;
 }
