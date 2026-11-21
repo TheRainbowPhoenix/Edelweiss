@@ -3,9 +3,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* A fixed 1 MiB P0 window: 960 KiB image, a 32 KiB guard gap and
-   32 KiB stack. A SH7305 can map it with sixteen 64 KiB UTLB entries. */
-#define EDL_MEMORY_VBASE 0x00300000u
+/* Candidate 1 MiB EX-word add-in virtual window (0x70000000..0x74000000).
+   NOT automatically covered by the OS: acquire_window must establish a
+   collision-free, refill-safe lease across native OS/gint world switches.
+   960 KiB image, 32 KiB guard gap and 32 KiB stack. */
+#define EDL_MEMORY_VBASE 0x71000000u
 #define EDL_MEMORY_PAGE 0x00010000u
 #define EDL_MEMORY_BYTES 0x00100000u
 #define EDL_MEMORY_IMAGE_END (EDL_MEMORY_VBASE + 0x000f0000u)
@@ -29,6 +31,12 @@ struct edl_memory_ops
     /* Optional: translate 4 KiB-aligned OS VA to 4 KiB-aligned RAM PA.
        Called before leaving OS world; no TLB changes are permitted here. */
     int (*translate)(void *context, uint32_t va, uint32_t *physical);
+    /* Mandatory MMU ownership gate; MUST prove that the requested region is
+       vacant and survives OS/gint world switches, TLB miss and interrupts.
+       This is NOT just an address-range predicate. It may fail closed. */
+    int (*acquire_window)(void *context, uint32_t va, uint32_t size);
+    /* Release the lease only after all aliases have been verified absent. */
+    int (*release_window)(void *context, uint32_t va, uint32_t size);
     int (*map)(void *context, uint32_t va, uint32_t physical, uint32_t size);
     int (*unmap)(void *context, uint32_t va, uint32_t size);
 };
@@ -40,6 +48,7 @@ struct edl_memory
     uint32_t physical;
     uint32_t physical_pages[EDL_MEMORY_PAGES];
     unsigned mapped;
+    int reserved;
     int loaded;
     int poisoned;
 };

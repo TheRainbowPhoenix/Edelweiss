@@ -9,9 +9,9 @@ TLB lease. It is **not enabled** on hardware by this PR.
 
 | Virtual region | Use |
 | --- | --- |
-| `00300000..003effff` | ELF executable/data, maximum 960 KiB |
-| `003f0000..003f7fff` | gap |
-| `003f8000..003fffff` | 32 KiB stack with canary |
+| `71000000..710effff` | ELF executable/data, maximum 960 KiB |
+| `710f0000..710f7fff` | gap |
+| `710f8000..710fffff` | 32 KiB stack with canary |
 
 These are P0 virtual addresses, not physical addresses. The backend requests
 `0x10ffff` bytes and aligns the 1 MiB virtual backing to sixteen 64 KiB units.
@@ -23,6 +23,14 @@ allocation slack for sixteen UTLB slots, rather than requiring 256 separate
 4 KiB mappings. `malloc()` does not reserve our fixed P0 destination or
 guarantee any particular physical page layout.
 
+The old `0x00300000` candidate is **invalid on A8500**: the firmware's
+`MMU_HandleTranslationFault` maps addresses below `0x70000000` to
+`0x10000000 | (VA & 0x007ff000)` on TLB miss. It cannot reliably alias
+allocated SDRAM. The new `0x71000000` candidate is *within the firmware's
+add-in primary virtual-address class*, but that class is only refilled inside
+the OS-configured `ADDIN_PRIMARY_VIRTUAL_START..END` interval; therefore
+this candidate still requires explicit OS-world MMU lease/refill integration.
+
 An EX-word port supplies `edl_memory_ops`:
 
 1. `alloc/free`: allocate and pin OS-managed RAM. A directly accessible P1
@@ -31,12 +39,16 @@ An EX-word port supplies `edl_memory_ops`:
    physical subpage within each 64 KiB backing unit **while OS mappings are
    active**. Free with precisely the matching OS API, never while a UTLB or
    ITLB alias is installed.
-2. `map`: reserve the P0 window and install a 64 KiB UTLB entry. The
-   callback must not overwrite currently active OS/gint mappings. Use a
-   *verified hardware-specific* MMU driver with a slot lease, proper
-   MMUCR.URC/URB ownership, cache synchronization and interrupt masking.
-3. `unmap`: remove the mapping and any ITLB alias, restore the host's
-   previous TLB and MMU state and return success **only when safe to free**.
+2. `acquire_window/release_window`: **mandatory** host MMU lease. Refuse
+   any collision, missing TLB refill for an evicted EDL page, unsafe interrupt
+   path, or lack of remapping across OS/gint world switches. A generic
+   always-success stub is not a valid hardware implementation. Release only
+   after all UTLB and ITLB aliases are verified absent.
+3. `map`: install a 64 KiB UTLB entry. Never overwrite OS/gint mappings.
+   Use a *verified hardware-specific* driver with correct MMUCR.URC/URB,
+   cache synchronization and interrupt masking.
+4. `unmap`: remove the mapping and any ITLB alias; report success only
+   when the physical frame can no longer be accessed through that virtual page.
    A failed unmap intentionally leaks the allocation rather than allowing
    stale translations to access freed RAM.
 
@@ -55,7 +67,9 @@ through uncached P2. It rejects oversized images before a write. The default
 EX-word gint's TLB-miss handler explicitly refills only the
 `0x70000000` resident image and `0x74000000` small RAM window. An unmapped
 P0 instruction fetch is sent to the original firmware exception handler.
-The OS and gint also change MMUCR and UTLB ownership across
+A8500's ROM similarly refills **only** its configured add-in primary/API
+ranges; it does not permit arbitrary P0 RAM aliases. The OS and gint also
+change MMUCR and UTLB ownership across
 `gint_world_switch`; those calls occur during EDL filesystem operations.
 It is not safe to enter P0 until we have either a reserved, non-evictable
 set of sixteen slots **across OS calls** or an explicit restore/refill

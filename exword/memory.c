@@ -67,7 +67,8 @@ static int backing_pages(const struct edl_memory_ops *ops, void *p, size_t bytes
 
 int edl_memory_open(struct edl_memory *memory, const struct edl_memory_ops *ops)
 {
-    if (!memory || !ops || !ops->alloc || !ops->free || !ops->map || !ops->unmap)
+    if (!memory || !ops || !ops->alloc || !ops->free || !ops->map || !ops->unmap ||
+        !ops->acquire_window || !ops->release_window)
         return -1;
     memset(memory, 0, sizeof *memory);
     memory->ops = *ops;
@@ -161,8 +162,11 @@ int edl_memory_finish_load(struct edl_memory *memory)
 
 int edl_memory_activate(struct edl_memory *memory)
 {
-    if (!owned(memory) || memory->mapped || !memory->loaded)
+    if (!owned(memory) || memory->mapped || !memory->loaded || memory->reserved)
         return -1;
+    if (memory->ops.acquire_window(memory->ops.context, EDL_MEMORY_VBASE, EDL_MEMORY_BYTES))
+        return -1;
+    memory->reserved = 1;
     for (unsigned i = 0; i < EDL_MEMORY_PAGES; i++)
     {
         uint32_t offset = i * EDL_MEMORY_PAGE;
@@ -191,6 +195,15 @@ int edl_memory_close(struct edl_memory *memory)
             return -1;
         }
         memory->mapped--;
+    }
+    if (memory->reserved)
+    {
+        if (memory->ops.release_window(memory->ops.context, EDL_MEMORY_VBASE, EDL_MEMORY_BYTES))
+        {
+            memory->poisoned = 1;
+            return -1; /* Keep backing pinned if the window is still leased. */
+        }
+        memory->reserved = 0;
     }
     memory->ops.free(memory->ops.context, memory->allocation);
     memset(memory, 0, sizeof *memory);

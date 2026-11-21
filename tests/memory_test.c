@@ -10,6 +10,7 @@ struct mock
     size_t requested;
     int allocations, releases, maps, unmaps;
     int map_fail_at, unmap_fail_at, bad_translation;
+    int lease_fail, release_fail, leases, lease_releases;
     unsigned translations;
     uint32_t mapped_va[EDL_MEMORY_PAGES], mapped_pa[EDL_MEMORY_PAGES];
 };
@@ -64,10 +65,29 @@ static int translate(void *context, uint32_t va, uint32_t *physical)
     m->translations++;
     return 0;
 }
+static int acquire_window(void *context, uint32_t va, uint32_t size)
+{
+    struct mock *m = context;
+    assert(va == EDL_MEMORY_VBASE && size == EDL_MEMORY_BYTES);
+    if (m->lease_fail)
+        return -1;
+    m->leases++;
+    return 0;
+}
+static int release_window(void *context, uint32_t va, uint32_t size)
+{
+    struct mock *m = context;
+    assert(va == EDL_MEMORY_VBASE && size == EDL_MEMORY_BYTES);
+    if (m->release_fail)
+        return -1;
+    m->lease_releases++;
+    return 0;
+}
 static struct edl_memory_ops ops(struct mock *m)
 {
     return (struct edl_memory_ops){
-        .context = m, .alloc = allocate, .free = release, .map = map, .unmap = unmap};
+        .context = m, .alloc = allocate, .free = release, .map = map, .unmap = unmap,
+        .acquire_window = acquire_window, .release_window = release_window};
 }
 int main(void)
 {
@@ -102,6 +122,7 @@ int main(void)
     assert(edl_memory_activate(&memory) < 0);
     assert(!edl_memory_close(&memory));
     assert(m.unmaps == EDL_MEMORY_PAGES && m.releases == 1);
+    assert(m.leases == 1 && m.lease_releases == 1);
 
     memset(&m, 0, sizeof m);
     m.answer = 0x8c011234u;
@@ -112,6 +133,7 @@ int main(void)
     assert(!edl_memory_finish_load(&memory));
     assert(edl_memory_activate(&memory) < 0);
     assert(m.maps == 3 && m.unmaps == 3 && m.releases == 1);
+    assert(m.leases == 1 && m.lease_releases == 1);
 
     memset(&m, 0, sizeof m);
     m.answer = 0x8c011234u;
@@ -155,6 +177,36 @@ int main(void)
     assert(edl_memory_open(&memory, &callbacks) < 0);
     assert(m.releases == 1 && m.maps == 0);
 
-    puts("OS heap translation, 64 KiB mapping, rollback and teardown passed");
+    /* The ROM does not authorize a new VA: no mapping should be attempted. */
+    memset(&m, 0, sizeof m);
+    m.answer = 0x8c011234u;
+    m.lease_fail = 1;
+    m.map_fail_at = -1;
+    m.unmap_fail_at = -1;
+    callbacks = ops(&m);
+    assert(!edl_memory_open(&memory, &callbacks));
+    assert(!edl_memory_finish_load(&memory));
+    assert(edl_memory_activate(&memory) < 0);
+    assert(m.maps == 0 && m.releases == 0 && m.leases == 0);
+    assert(!edl_memory_close(&memory));
+    assert(m.releases == 1);
+
+    /* Even a successful unmap cannot free RAM until the MMU lease is gone. */
+    memset(&m, 0, sizeof m);
+    m.answer = 0x8c011234u;
+    m.map_fail_at = -1;
+    m.unmap_fail_at = -1;
+    m.release_fail = 1;
+    callbacks = ops(&m);
+    assert(!edl_memory_open(&memory, &callbacks));
+    assert(!edl_memory_finish_load(&memory));
+    assert(!edl_memory_activate(&memory));
+    assert(edl_memory_close(&memory) < 0);
+    assert(memory.poisoned && !m.releases && m.leases == 1);
+    m.release_fail = 0;
+    assert(!edl_memory_close(&memory));
+    assert(m.releases == 1 && m.lease_releases == 1);
+
+    puts("OS heap translation, ROM window leasing, mapping and teardown passed");
     return 0;
 }

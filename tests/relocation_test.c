@@ -29,7 +29,7 @@ static int read_file(void *ctx, uint32_t at, void *out, size_t n)
     memcpy(out, file + at, n);
     return 0;
 }
-#define P0_ACTUAL 0x00300000u
+#define P0_ACTUAL 0x71000000u
 static int write_p0(void *ctx, uint32_t at, const void *data, size_t n)
 {
     (void)ctx;
