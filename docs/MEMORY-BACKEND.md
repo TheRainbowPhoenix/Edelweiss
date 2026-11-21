@@ -1,11 +1,41 @@
 # Allocator-backed MMU loading (experimental backend)
 
-The default EX-word loader still places EDLs in the known P1 arena. This
-backend provides the **allocation and mapping contract** for replacing the
-hardcoded physical arena once the platform can supply OS-owned RAM and a safe
-TLB lease. It is **not enabled** on hardware by this PR.
+The normal EX-word loader now **prefers syscall 0xae selector 3** across
+all ROMs that expose it. It checks the returned P1/P2 SDRAM pointer and size,
+aligns down to a set of physical 64 KiB chunks, and loads relocatable EDLs
+directly through P1/P2 aliases. This provides a generic **direct P1 execution
+path** without requiring a firmware fingerprint. If the syscall returns an
+invalid buffer, the loader falls back only to known firmware legacy arenas.
 
-## Layout
+The separate **fixed-VA MMU backend remains experimental and disabled**.
+The ROM's 0xae buffer is a fixed scratch region, not malloc/free. Execution
+using it relies on the user-supplied deployment assumption that the host
+allows use of the buffer throughout the EDL lifetime, including its native
+filesystem/UI callbacks. This cannot be inferred solely from the A8500
+ROM, so this is not a proved all-device guarantee.
+
+## Generic syscall 0xae P1 execution
+
+`edl_syscall_ae_probe` calls `edl_os_call(0xae, 3, &bytes, 0, 0)` via
+the native OS world. `edl_scratch_layout` validates a P1/P2 SDRAM alias,
+rejects physical overflow, and requires at least three complete 64 KiB
+chunks. It does **not** require a ROM fingerprint or fixed pointer value.
+It caps a larger returned buffer to a 4 MiB executable arena.
+
+One final 64 KiB chunk holds a 32 KiB guard and 32 KiB stack; preceding
+full chunks hold the ELF. On the A8500, the returned
+`0xac3c2018 / 0x100004` produces:
+- executable P1 image `0x8c3d0000..0x8c4b0000` (896 KiB)
+- guard `0x8c4b0000..0x8c4b8000`
+- stack `0x8c4b8000..0x8c4c0000`
+
+Different models can return different lengths and addresses. Existing ELF
+relocations adjust to the actual P1 address. **No new MMU mapping is
+installed on this path.** It does not yet provide a common fixed virtual VA.
+Both this generic scratch path and its eventual MMU replacement depend on a
+host-owned buffer whose lifetime is not independently verified by the ROM.
+
+## Experimental fixed-VA MMU layout
 
 | Virtual region | Use |
 | --- | --- |

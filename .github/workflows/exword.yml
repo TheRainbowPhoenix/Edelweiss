@@ -48,6 +48,8 @@ jobs:
           set -euo pipefail
           cc -std=c11 -Wall -Wextra -Werror exword/memory.c tests/memory_test.c -o /tmp/test-memory
           /tmp/test-memory
+          cc -std=c11 -Wall -Wextra -Werror exword/scratch.c tests/scratch_test.c -o /tmp/test-scratch
+          /tmp/test-scratch
   build:
     runs-on: ubuntu-latest
     container:
@@ -64,6 +66,8 @@ jobs:
           /tmp/test-firmware
           cc -std=c11 -Wall -Wextra -Werror exword/elf.c tests/relocation_test.c -o /tmp/test-relocation
           /tmp/test-relocation
+          cc -std=c11 -Wall -Wextra -Werror exword/scratch.c tests/scratch_test.c -o /tmp/test-scratch
+          /tmp/test-scratch
           cc -std=c11 -Wall -Wextra -Werror -Itests/mock \
             '-DEDL_APPID="EDELW"' -DEDL_ARENA_START=0x8c700000 -DEDL_ARENA_END=0x8c7f0000 \
             exword/fs.c exword/paths.c exword/elf.c exword/memory.c tests/fs_test.c -o /tmp/test-fs
