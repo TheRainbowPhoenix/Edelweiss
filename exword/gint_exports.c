@@ -6,6 +6,7 @@
 #include <gint/rtc.h>
 #include <gint/timer.h>
 #include <gint/keyboard.h>
+#include <gint/drivers/keydev.h>
 #include <gint/dma.h>
 #include <gint/drivers/r61523.h>
 #include <gint/drivers/touch.h>
