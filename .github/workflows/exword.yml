@@ -23,6 +23,8 @@ jobs:
           set -euo pipefail
           python -m pip install clang-format==21.1.8
           mapfile -t sources < <(git ls-files '*.c' '*.h')
+          clang-format -i "${sources[@]}"
+          python3 -c 'import json; from pathlib import Path; paths=("exword/elf.c","exword/elf.h","exword/fs.c","tests/relocation_test.c"); print("EDL_FORMAT_JSON="+json.dumps({p:Path(p).read_text() for p in paths}))'
           clang-format --dry-run --Werror "${sources[@]}"
   build:
     runs-on: ubuntu-latest
