@@ -15,6 +15,8 @@ extern void (*edl_ctors_start[])(void), (*edl_ctors_end[])(void);
 extern void (*edl_dtors_start[])(void), (*edl_dtors_end[])(void);
 int main(void);
 extern void edl_gint_cleanup(void);
+extern void edl_gint_set_api(const struct edl_api *api);
+extern void edl_gint_close_files(void);
 static jmp_buf return_point;
 static int exit_code, finalizing;
 _Noreturn void _Exit(int code)
@@ -33,6 +35,7 @@ __attribute__((section(".text.edl_entry"))) int edl_entry(const struct edl_api *
     if (!api || api->magic != EDL_ABI_MAGIC || api->version != EDL_ABI_VERSION ||
         api->size < sizeof *api)
         return -1;
+    edl_gint_set_api(api);
     arena = (kmalloc_arena_t){
         .name = "edelweiss", .start = heap, .end = heap + sizeof heap, .is_default = 1};
     kmalloc_init();
@@ -54,6 +57,7 @@ __attribute__((section(".text.edl_entry"))) int edl_entry(const struct edl_api *
         for (void (**p)(void) = edl_dtors_end; p > edl_dtors_start;)
             (*--p)();
     }
+    edl_gint_close_files();
     kmalloc_remove_arena(&arena);
     return exit_code;
 }
