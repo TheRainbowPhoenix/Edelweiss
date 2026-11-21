@@ -36,8 +36,7 @@ int edl_read_cache_read(void *ctx, uint32_t offset, void *destination, size_t si
             /* Choose an unused slot, then the least recently used slot. */
             index = 0;
             for (unsigned i = 0; i < EDL_READ_CACHE_SLOTS; i++)
-                if (!cache->slots[i].length ||
-                    cache->slots[i].age < cache->slots[index].age)
+                if (!cache->slots[i].length || cache->slots[i].age < cache->slots[index].age)
                 {
                     index = i;
                     if (!cache->slots[i].length)
