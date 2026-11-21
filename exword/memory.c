@@ -68,8 +68,8 @@ int edl_memory_write(void *memory, uint32_t va, const void *data, size_t size)
 {
     struct edl_memory *owned_memory = memory;
     uint32_t physical;
-    if (!owned(owned_memory) || owned_memory->mapped || owned_memory->loaded ||
-        !data || edl_memory_resolve(memory, va, size, &physical))
+    if (!owned(owned_memory) || owned_memory->mapped || owned_memory->loaded || !data ||
+        edl_memory_resolve(memory, va, size, &physical))
         return -1;
 #if defined(__sh__)
     /* The uncached P2 alias is safe for loader writes while the P0 window
