@@ -5,6 +5,13 @@
 #include <stdint.h>
 
 const struct edl_firmware *edl_current;
+int edl_resolve_gint(void *ctx, const char *name, uint32_t *address)
+{
+    (void)ctx;
+    (void)name;
+    (void)address;
+    return -1;
+}
 
 struct directory
 {

@@ -20,6 +20,8 @@ int edl_boot_path_for_id(char out[EDL_PATH_MAX], const char id[8]);
 int edl_boot_path(char out[EDL_PATH_MAX]);
 int edl_profile_init(void);
 void edl_profile_release(void);
+int edl_resolve_gint(void *ctx, const char *name, uint32_t *address);
+void edl_gint_cleanup(void);
 void edl_sync_code(void);
 int edl_battery_state(void);
 #endif

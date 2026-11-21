@@ -33,4 +33,9 @@ int edl_elf_load(edl_read_fn read, void *read_context, uint32_t file_size, uint3
 int edl_elf_load_at(edl_read_fn read, void *read_context, uint32_t file_size, uint32_t link_start,
                     uint32_t link_end, uint32_t actual_start, edl_write_fn write,
                     void *write_context, struct edl_image *image);
+typedef int (*edl_resolve_fn)(void *context, const char *name, uint32_t *address);
+int edl_elf_load_linked(edl_read_fn read, void *read_context, uint32_t file_size,
+                        uint32_t link_start, uint32_t link_end, uint32_t actual_start,
+                        edl_write_fn write, void *write_context, edl_resolve_fn resolve,
+                        void *resolve_context, struct edl_image *image);
 #endif

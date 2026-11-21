@@ -78,10 +78,10 @@ static int load_native(struct io *q)
     if (fd < 0)
         return fd;
     int size = exword_sys_get_filesize(fd);
-    int rc = size < 0
-                 ? size
-                 : edl_elf_load_at(read_exact, &fd, (uint32_t)size, EDL_ARENA_START, EDL_ARENA_END,
-                                   edl_current->arena_start, write_physical, NULL, q->buffer);
+    int rc = size < 0 ? size
+                      : edl_elf_load_linked(read_exact, &fd, (uint32_t)size, EDL_ARENA_START,
+                                            EDL_ARENA_END, edl_current->arena_start, write_physical,
+                                            NULL, edl_resolve_gint, NULL, q->buffer);
     int close = exword_sys_close(fd);
     return rc < 0 ? rc : close < 0 ? close : 0;
 }

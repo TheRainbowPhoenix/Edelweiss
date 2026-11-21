@@ -214,6 +214,7 @@ int main(void)
             *(volatile uint32_t *)(uintptr_t)api.stack_start = 0x45444c53;
             clearevents();
             rc = edl_invoke(image.entry, &api, api.stack_end);
+            edl_gint_cleanup();
             if (*(volatile uint32_t *)(uintptr_t)api.stack_start != 0x45444c53)
             {
                 message("Edelweiss: stack overflow", active, -12);

@@ -22,6 +22,15 @@ static int write_memory(void *ctx, uint32_t address, const void *src, size_t n)
     memcpy(memory + address - actual, src, n);
     return 0;
 }
+static int fake_resolve(void *ctx, const char *name, uint32_t *address)
+{
+    (void)ctx;
+    uint32_t hash = 0;
+    for (; *name; name++)
+        hash = hash * 33 + (unsigned char)*name;
+    *address = 0x70010000 + (hash & 0xfff) * 4;
+    return 0;
+}
 int main(int argc, char **argv)
 {
     assert(argc > 1);
@@ -34,12 +43,13 @@ int main(int argc, char **argv)
         assert(size > 0 && size < 0x1000000);
         memset(memory, 0xa5, sizeof memory);
         struct edl_image image;
-        assert(!edl_elf_load(read_file, f, (uint32_t)size, BASE, END, write_memory, 0, &image));
+        assert(!edl_elf_load_linked(read_file, f, (uint32_t)size, BASE, END, BASE, write_memory, 0,
+                                    fake_resolve, 0, &image));
         memcpy(original, memory, sizeof original);
         actual = 0x8c800000;
         memset(memory, 0xa5, sizeof memory);
-        assert(!edl_elf_load_at(read_file, f, (uint32_t)size, BASE, END, actual, write_memory, 0,
-                                &image));
+        assert(!edl_elf_load_linked(read_file, f, (uint32_t)size, BASE, END, actual, write_memory,
+                                    0, fake_resolve, 0, &image));
         assert(image.entry >= actual && image.entry < actual + sizeof memory);
         unsigned changed = 0;
         for (unsigned k = 0; k < sizeof memory; k += 4)

@@ -120,6 +120,30 @@ static int load(void)
     }
     return rc;
 }
+static int resolve_service(void *ctx, const char *name, uint32_t *address)
+{
+    (void)ctx;
+    if (strcmp(name, "_getkey"))
+        return -1;
+    *address = 0x70001000;
+    return 0;
+}
+static void import_fixture(void)
+{
+    fixture();
+    memcpy(file + 612, ".edl.gint", 10);
+    memcpy(file + 623, "_getkey", 8);
+    w32(496, 12);
+    w32(500, 1);
+    w32(512, 660);
+    w32(516, 8);
+    w32(660, 0x47494e54);
+    w32(664, 1);
+    w32(376 + 24, 1);
+    w32(732, 23);
+    w32(732 + 4, 0);
+    w32(132, 8);
+}
 int main(void)
 {
     fixture();
@@ -167,6 +191,19 @@ int main(void)
     fixture();
     assert(edl_elf_load_at(read_file, NULL, sizeof file, BASE, BASE + 4096, 0xfffff800,
                            write_memory, NULL, &image) < 0 &&
+           writes == 0);
+    import_fixture();
+    assert(!edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, ACTUAL,
+                                write_memory, NULL, resolve_service, NULL, &image));
+    assert(value(4) == 0x70001008 && value(0) == ACTUAL + 20);
+    import_fixture();
+    assert(edl_elf_load_at(read_file, NULL, sizeof file, BASE, BASE + 4096, ACTUAL, write_memory,
+                           NULL, &image) < 0 &&
+           writes == 0);
+    import_fixture();
+    file[624] = 'X';
+    assert(edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, ACTUAL,
+                               write_memory, NULL, resolve_service, NULL, &image) < 0 &&
            writes == 0);
     puts("ELF relocation, fixed MMIO, REL32, BSS and malformed input checks passed");
 }

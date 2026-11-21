@@ -142,6 +142,9 @@ int edl_elf_load(edl_read_fn read, void *rctx, uint32_t size, uint32_t start, ui
 
 struct relocation
 {
+    edl_resolve_fn resolve;
+    void *resolve_context;
+    int imports;
     edl_read_fn read;
     void *rctx;
     uint32_t size, base, end, delta, shoff;
@@ -179,10 +182,24 @@ static int relocation_marker(struct relocation *r, const unsigned char h[52])
     {
         if (section(r, i, s))
             return -1;
-        if (!within(u32(s), sizeof name, u32(strings + 20)))
+        if (u32(s) >= u32(strings + 20))
             continue;
-        if (r->read(r->rctx, u32(strings + 16) + u32(s), name, sizeof name))
-            return -1;
+        uint32_t name_size = u32(strings + 20) - u32(s);
+        if (name_size > sizeof name)
+            name_size = sizeof name;
+        memset(name, 0, sizeof name);
+        if (r->read(r->rctx, u32(strings + 16) + u32(s), name, name_size) ||
+            !memchr(name, 0, name_size))
+            continue;
+        if (!memcmp(name, ".edl.gint", 10) && u32(s + 20) == 8)
+        {
+            unsigned char tag[8];
+            if (r->imports || u32(s + 4) != 1 || (u32(s + 8) & 2) ||
+                !within(u32(s + 16), 8, r->size) || r->read(r->rctx, u32(s + 16), tag, 8) ||
+                u32(tag) != 0x47494e54 || u32(tag + 4) != 1)
+                return -1;
+            r->imports = 1;
+        }
         if (memcmp(name, ".edl.reloc", 11))
             continue;
         if (found++ || u32(s + 4) != 1 || (u32(s + 8) & 2) || u32(s + 20) != 12 ||
@@ -238,8 +255,26 @@ static int relocate(struct relocation *r, int apply)
                 return -1;
             unsigned shndx = u16(sym + 14);
             int moves = 0;
+            uint32_t binding = 0;
             if (shndx == 0xfff1)
-            { /* SHN_ABS: hardware addresses stay fixed. */
+            { /* SHN_ABS: imported services have a zero link-time value. */
+                if (r->imports && !u32(sym + 4))
+                {
+                    unsigned char strings[40];
+                    char name[96];
+                    if (!r->resolve || section(r, u32(symbols + 24), strings) ||
+                        u32(strings + 4) != 3 ||
+                        !within(u32(strings + 16), u32(strings + 20), r->size) ||
+                        u32(sym) >= u32(strings + 20))
+                        return -1;
+                    uint32_t n = u32(strings + 20) - u32(sym);
+                    if (n > sizeof name)
+                        n = sizeof name;
+                    if (r->read(r->rctx, u32(strings + 16) + u32(sym), name, n) ||
+                        !memchr(name, 0, n) || r->resolve(r->resolve_context, name, &binding) ||
+                        !binding)
+                        return -1;
+                }
             }
             else
             {
@@ -257,7 +292,7 @@ static int relocate(struct relocation *r, int apply)
             }
             /* REL32's place moves too; internal PC-relative references do
                not change, references to fixed absolute symbols do. */
-            value += kind == 1 ? (moves ? r->delta : 0) : (moves ? 0 : -r->delta);
+            value += binding + (kind == 1 ? (moves ? r->delta : 0) : (moves ? 0 : -r->delta));
             if (apply)
             {
                 word[0] = value >> 24;
@@ -276,12 +311,13 @@ static int moved_write(void *ctx, uint32_t address, const void *data, size_t siz
     struct relocation *r = ctx;
     return r->write(r->wctx, address + r->delta, data, size);
 }
-int edl_elf_load_at(edl_read_fn read, void *rctx, uint32_t size, uint32_t start, uint32_t end,
-                    uint32_t actual, edl_write_fn write, void *wctx, struct edl_image *out)
+int edl_elf_load_linked(edl_read_fn read, void *rctx, uint32_t size, uint32_t start, uint32_t end,
+                        uint32_t actual, edl_write_fn write, void *wctx, edl_resolve_fn resolve,
+                        void *resolve_context, struct edl_image *out)
 {
     if (!out || !write || start >= end || actual > UINT32_MAX - (end - start))
         return -1;
-    if (actual == start)
+    if (actual == start && !resolve)
         return edl_elf_load(read, rctx, size, start, end, write, wctx, out);
     struct edl_image image;
     unsigned char h[52];
@@ -296,8 +332,19 @@ int edl_elf_load_at(edl_read_fn read, void *rctx, uint32_t size, uint32_t start,
         if (u32(ph) == 1 && align > 1 && ((actual - start) & (align - 1)))
             return -1;
     }
-    struct relocation r = {read,        rctx,        size,   start, end, actual - start,
-                           u32(h + 32), u16(h + 48), &image, write, wctx};
+    struct relocation r = {.resolve = resolve,
+                           .resolve_context = resolve_context,
+                           .read = read,
+                           .rctx = rctx,
+                           .size = size,
+                           .base = start,
+                           .end = end,
+                           .delta = actual - start,
+                           .shoff = u32(h + 32),
+                           .shnum = u16(h + 48),
+                           .image = &image,
+                           .write = write,
+                           .wctx = wctx};
     if (relocation_marker(&r, h) || relocate(&r, 0))
         return -1;
     if (edl_elf_load(read, rctx, size, start, end, moved_write, &r, &image) || relocate(&r, 1))
@@ -307,4 +354,10 @@ int edl_elf_load_at(edl_read_fn read, void *rctx, uint32_t size, uint32_t start,
         image.segments[i].address += r.delta;
     *out = image;
     return 0;
+}
+
+int edl_elf_load_at(edl_read_fn read, void *rctx, uint32_t size, uint32_t start, uint32_t end,
+                    uint32_t actual, edl_write_fn write, void *wctx, struct edl_image *out)
+{
+    return edl_elf_load_linked(read, rctx, size, start, end, actual, write, wctx, NULL, NULL, out);
 }
