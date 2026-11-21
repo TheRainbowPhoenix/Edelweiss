@@ -89,8 +89,8 @@ static int load_native(struct io *q)
                             edl_memory_write, q->mapping, edl_resolve_gint, NULL, q->buffer);
     else
         rc = edl_elf_load_auto(read_exact, &fd, (uint32_t)size, edl_active_arena.arena_start,
-                               edl_active_arena.arena_end, write_physical, NULL, edl_resolve_gint, NULL,
-                               q->buffer);
+                               edl_active_arena.arena_end, write_physical, NULL, edl_resolve_gint,
+                               NULL, q->buffer);
     int close = exword_sys_close(fd);
     return rc < 0 ? rc : close < 0 ? close : 0;
 }
