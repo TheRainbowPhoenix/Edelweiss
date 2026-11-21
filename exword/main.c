@@ -1,7 +1,6 @@
 #include "host.h"
 #include <gint/display.h>
 #include <gint/keyboard.h>
-#include <gint/drivers/touch.h>
 #include <gint/gint.h>
 #include <gint/rtc.h>
 #include <string.h>
@@ -145,31 +144,14 @@ static void loading(void)
     dtext(DWIDTH - 82, DHEIGHT - 16, 0xbdf7, "loading...");
     dupdate();
 }
-/* Discard the launch/exit gesture through its release. Clearing the queue
-   alone leaves held keys and the pen active in the next application. */
-static int release_input(void)
+/* Discard queued launch/exit gestures without blocking the next application.
+   The touch driver's last scan is cached; it is not guaranteed to refresh
+   while we wait here. Polling its old pen_down state can falsely reject every
+   EDL launch with -21, as reported on XD-D6600. Holding keys during launch
+   must never prevent the already-validated ELF from starting. */
+static void release_input(void)
 {
-    /* A stale pen-down scan or a stuck key must not spin forever while the
-       screen still says "loading...". Normal input release is instantaneous.
-       Abort launch after two seconds or if the RTC stops ticking. */
-    uint32_t start = rtc_ticks();
-    for (unsigned spins = 0; spins < 8000000u; spins++)
-    {
-        struct exword_touch_debug touch;
-        clearevents();
-        touch_exword_get_last_scan(&touch);
-        if (!keydown_any(KEY_EXE, KEY_EXIT, KEY_ACON, KEY_MENU, 0) && !touch.pen_down)
-        {
-            clearevents();
-            return 0;
-        }
-        uint32_t now = rtc_ticks();
-        uint32_t elapsed = now >= start ? now - start : 128u * 86400u - start + now;
-        if (elapsed >= 256u)
-            break;
-    }
     clearevents();
-    return -1;
 }
 static void message(const char *title, const char *detail, int rc)
 {
@@ -249,12 +231,7 @@ int main(void)
         {
             edl_sync_code();
             *(volatile uint32_t *)(uintptr_t)api.stack_start = 0x45444c53;
-            if (release_input())
-            {
-                message("Edelweiss: input held",
-                        "Release the launch key or touch screen and retry.", -21);
-                break;
-            }
+            release_input();
             rc = edl_invoke(image.entry, &api, api.stack_end);
             edl_gint_cleanup();
             if (*(volatile uint32_t *)(uintptr_t)api.stack_start != 0x45444c53)
@@ -262,11 +239,7 @@ int main(void)
                 message("Edelweiss: stack overflow", active, -12);
                 break;
             }
-            if (release_input())
-            {
-                message("Edelweiss: input held", "Key or pen held after exit.", -21);
-                break;
-            }
+            release_input();
             if (rc == EDL_LAUNCH && next[0])
             {
                 memcpy(active, next, sizeof active);

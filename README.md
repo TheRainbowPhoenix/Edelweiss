@@ -15,6 +15,13 @@ device safety.
 
 ## Hardware compatibility smoke test
 
+**XD-D6600 launch regression (2026-11-21):** A formerly bounded
+input-release check read the touch driver's cached pen-down state without
+forcing a new scan. On actual D6600 hardware this produced `Result -21`
+before *any* ELF entrypoint was called. Input release is no longer a
+precondition for launching an EDL: only queued gestures are cleared.
+
+
 Use the **Edelweiss-ja/cn** packages from the successful workflow run for
 this feature branch, **not** the older `edelweiss` release branch.
 Install the single `EDELW` folder and launch its EBrew menu. Then try
