@@ -326,7 +326,7 @@ static int bulk_list_native(struct bulk_list *q)
     int handle=-1;
     int rc=exword_sys_findfirst(pattern,&handle,name,&kind);
     if(rc<0)return rc==-16 || rc==-1 ? 0 : rc;
-    unsigned total=0;
+    unsigned total=0, scanned=0;
     do {
         name[sizeof name-1]=0;
         size_t len=strlen(name);
@@ -340,6 +340,7 @@ static int bulk_list_native(struct bulk_list *q)
             total++;
         }
         name[0]=0;kind=0;
+        if(++scanned>=4096) { rc=-16; break; }
         /* The native filesystem can be scanned in bounded windows when
            the caller knows the total from the initial enumeration. */
         rc=exword_sys_findnext(handle,name,&kind);
