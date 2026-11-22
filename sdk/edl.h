@@ -12,6 +12,7 @@
    switch so its search handle never escapes the native filesystem world.
    No change to the EDL_ABI_VERSION=1 structure offsets. */
 #define EDL_OS_BULK_LIST 0x45444c46u /* 'EDLF' */
+#define EDL_OS_FILE_SIZE 0x45444c5au /* 'EDLZ' */
 struct edl_dirent {
     char name[128];
     int32_t directory;
