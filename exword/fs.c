@@ -309,72 +309,93 @@ static int call_native(struct call *q)
 /* Directory enumerator used by GUI apps needing read-only navigation.
    Like EXWord-Explorer, keep the native search handle alive for the
    *entire* native enumeration, never across a pair of world switches. */
-struct bulk_list {
+struct bulk_list
+{
     const char *directory;
     unsigned first, capacity;
     struct edl_dirent *rows;
 };
 static int bulk_list_native(struct bulk_list *q)
 {
-    char pattern[EDL_PATH_MAX], name[512]={0};
-    size_t n=strlen(q->directory);
-    if(!n || n+3>=sizeof pattern)return -1;
-    memcpy(pattern,q->directory,n);
-    if(pattern[n-1]!='\\')pattern[n++]='\\';
-    pattern[n++]='*';pattern[n]=0;
-    unsigned long kind=0;
-    int handle=-1;
-    int rc=exword_sys_findfirst(pattern,&handle,name,&kind);
-    if(rc<0)return rc==-16 || rc==-1 ? 0 : rc;
-    unsigned total=0, scanned=0;
-    do {
-        name[sizeof name-1]=0;
-        size_t len=strlen(name);
-        if(len && len<sizeof q->rows[0].name &&
-           strcmp(name,".") && strcmp(name,"..")) {
-            if(total>=q->first && total-q->first<q->capacity) {
-                struct edl_dirent *row=&q->rows[total-q->first];
-                memcpy(row->name,name,len+1);
-                row->directory=kind==5;
+    char pattern[EDL_PATH_MAX], name[512] = {0};
+    size_t n = strlen(q->directory);
+    if (!n || n + 3 >= sizeof pattern)
+        return -1;
+    memcpy(pattern, q->directory, n);
+    if (pattern[n - 1] != '\\')
+        pattern[n++] = '\\';
+    pattern[n++] = '*';
+    pattern[n] = 0;
+    unsigned long kind = 0;
+    int handle = -1;
+    int rc = exword_sys_findfirst(pattern, &handle, name, &kind);
+    if (rc < 0)
+        return rc == -16 || rc == -1 ? 0 : rc;
+    unsigned total = 0, scanned = 0;
+    do
+    {
+        name[sizeof name - 1] = 0;
+        size_t len = strlen(name);
+        if (len && len < sizeof q->rows[0].name && strcmp(name, ".") && strcmp(name, ".."))
+        {
+            if (total >= q->first && total - q->first < q->capacity)
+            {
+                struct edl_dirent *row = &q->rows[total - q->first];
+                memcpy(row->name, name, len + 1);
+                row->directory = kind == 5;
             }
             total++;
         }
-        name[0]=0;kind=0;
-        if(++scanned>=4096) { rc=-16; break; }
-        /* The native filesystem can be scanned in bounded windows when
-           the caller knows the total from the initial enumeration. */
-        rc=exword_sys_findnext(handle,name,&kind);
-    }while(rc>=0);
-    int closed=exword_sys_findclose(handle);
-    if(closed<0)return closed;
-    if(rc!=-1 && rc!=-16)return -1;
+        name[0] = 0;
+        kind = 0;
+        if (++scanned >= 4096)
+        {
+            rc = -16;
+            break;
+        }
+        rc = exword_sys_findnext(handle, name, &kind);
+    } while (rc >= 0);
+    int closed = exword_sys_findclose(handle);
+    if (closed < 0)
+        return closed;
+    if (rc != -1 && rc != -16)
+        return -1;
     return (int)total;
 }
 
 /* Keep open/get_filesize/close within a single native OS-world switch. */
-struct native_size { const char *path; };
+struct native_size
+{
+    const char *path;
+};
 static int native_file_size(struct native_size *q)
 {
-    int fd=exword_sys_open(q->path,1);
-    if(fd<0)return -1;
-    int n=exword_sys_get_filesize(fd);
-    int closed=exword_sys_close(fd);
-    return n>=0 && closed>=0?n:-1;
+    int fd = exword_sys_open(q->path, 1);
+    if (fd < 0)
+        return -1;
+    int n = exword_sys_get_filesize(fd);
+    int closed = exword_sys_close(fd);
+    return n >= 0 && closed >= 0 ? n : -1;
 }
 
 int edl_os_call(uint32_t id, uint32_t a, uint32_t b, uint32_t c, uint32_t d)
 {
-    if(id==EDL_OS_FILE_SIZE) {
-        if(!a)return -1;
-        struct native_size q={.path=(const char *)(uintptr_t)a};
+    if (id == EDL_OS_FILE_SIZE)
+    {
+        if (!a)
+            return -1;
+        struct native_size q;
+        q.path = (const char *)(uintptr_t)a;
         return gint_world_switch(GINT_CALL(native_file_size, (void *)&q));
     }
-    if(id==EDL_OS_BULK_LIST) {
-        struct bulk_list q={
-            .directory=(const char *)(uintptr_t)a,
-            .first=b,.rows=(struct edl_dirent *)(uintptr_t)c,.capacity=d
-        };
-        if(!q.directory || !q.rows || q.capacity>8 || q.first>65535)
+    if (id == EDL_OS_BULK_LIST)
+    {
+        struct bulk_list q;
+        q.directory = (const char *)(uintptr_t)a;
+        q.first = b;
+        q.rows = (struct edl_dirent *)(uintptr_t)c;
+        q.capacity = d;
+        if (!q.directory || !q.rows || q.capacity > 8 || q.first > 65535)
             return -1;
         return gint_world_switch(GINT_CALL(bulk_list_native, (void *)&q));
     }
