@@ -350,8 +350,24 @@ static int bulk_list_native(struct bulk_list *q)
     return (int)total;
 }
 
+/* Keep open/get_filesize/close within a single native OS-world switch. */
+struct native_size { const char *path; };
+static int native_file_size(struct native_size *q)
+{
+    int fd=exword_sys_open(q->path,1);
+    if(fd<0)return -1;
+    int n=exword_sys_get_filesize(fd);
+    int closed=exword_sys_close(fd);
+    return n>=0 && closed>=0?n:-1;
+}
+
 int edl_os_call(uint32_t id, uint32_t a, uint32_t b, uint32_t c, uint32_t d)
 {
+    if(id==EDL_OS_FILE_SIZE) {
+        if(!a)return -1;
+        struct native_size q={.path=(const char *)(uintptr_t)a};
+        return gint_world_switch(GINT_CALL(native_file_size, (void *)&q));
+    }
     if(id==EDL_OS_BULK_LIST) {
         struct bulk_list q={
             .directory=(const char *)(uintptr_t)a,
