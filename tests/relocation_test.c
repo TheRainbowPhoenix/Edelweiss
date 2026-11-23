@@ -277,8 +277,9 @@ int main(void)
     assert(value(0) == ACTUAL + 20 && value(4) == 0x70001008);
     import_fixture();
     reads = 0;
-    assert(!edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, BASE,
-                                write_linked, NULL, resolve_service, NULL, &image));
+    int same_rc = edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, BASE,
+                                      write_linked, NULL, resolve_service, NULL, &image);
+    assert(!same_rc);
     assert(value(0) == BASE + 20 && value(4) == 0x70001008 && value(8) == 12);
     assert(reads + 2 <= moved_reads); /* Two already-validated no-ops skipped. */
     import_fixture();
