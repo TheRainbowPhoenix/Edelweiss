@@ -31,6 +31,10 @@ function(add_gint_edl TARGET)
     string(REGEX REPLACE "EDL_GINT_SYMBOL\\(([A-Za-z0-9_]+)\\)" "\\1" SYMBOL "${LINE}")
     file(APPEND "${IMPORT_SCRIPT}" "PROVIDE(_${SYMBOL} = 0);\n")
   endforeach()
+  # Unique hosted aliases avoid pulling private duplicate gint graphics code
+  # into the payload. Their absolute-zero relocations are resolved by D01.
+  file(APPEND "${IMPORT_SCRIPT}"
+    "PROVIDE(_edl_native_dsubimage = 0);\nPROVIDE(_edl_native_dgetpixel = 0);\n")
   add_executable(${TARGET} ${ARGN} "${_EDL_SDK_DIR}/gint_start.c" "${_EDL_SDK_DIR}/gint_fs.c")
   set_target_properties(${TARGET} PROPERTIES SUFFIX ".edl" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
   target_include_directories(${TARGET} PRIVATE "${_EDL_SDK_DIR}" "${GINT_EXWORD_INCLUDE_DIR}")
