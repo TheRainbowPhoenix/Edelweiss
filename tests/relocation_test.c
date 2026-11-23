@@ -5,7 +5,7 @@
 #define BASE 0x8c700000u
 #define ACTUAL 0x8c800000u
 static unsigned char file[2048], memory[4096];
-static unsigned writes;
+static unsigned writes, reads;
 static void w16(unsigned at, unsigned v)
 {
     file[at] = v >> 8;
@@ -24,9 +24,18 @@ static uint32_t value(unsigned at)
 static int read_file(void *ctx, uint32_t at, void *out, size_t n)
 {
     (void)ctx;
+    reads++;
     if (at > sizeof file || n > sizeof file - at)
         return -1;
     memcpy(out, file + at, n);
+    return 0;
+}
+static int write_linked(void *ctx, uint32_t at, const void *data, size_t n)
+{
+    (void)ctx;
+    assert(at >= BASE && at < BASE + sizeof memory && n <= BASE + sizeof memory - at);
+    memcpy(memory + at - BASE, data, n);
+    writes++;
     return 0;
 }
 #define P0_ACTUAL 0x71000000u
@@ -258,6 +267,20 @@ int main(void)
     assert(edl_elf_load_at(read_file, NULL, sizeof file, BASE, BASE + 4096, 0xfffff800,
                            write_memory, NULL, &image) < 0 &&
            writes == 0);
+    /* Same-address ELF loads should leave validated internal and MMIO
+       relocations as-is; imported host services still need patching. */
+    import_fixture();
+    reads = 0;
+    assert(!edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, ACTUAL,
+                                write_memory, NULL, resolve_service, NULL, &image));
+    unsigned moved_reads = reads;
+    assert(value(0) == ACTUAL + 20 && value(4) == 0x70001008);
+    import_fixture();
+    reads = 0;
+    assert(!edl_elf_load_linked(read_file, NULL, sizeof file, BASE, BASE + 4096, BASE,
+                                write_linked, NULL, resolve_service, NULL, &image));
+    assert(value(0) == BASE + 20 && value(4) == 0x70001008 && value(8) == 12);
+    assert(reads + 2 <= moved_reads); /* Two already-validated no-ops skipped. */
     import_fixture();
     struct edl_image auto_image;
     assert(!edl_elf_load_auto(read_file, NULL, sizeof file, ACTUAL, ACTUAL + 4096, write_memory,
