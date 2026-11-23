@@ -1,5 +1,21 @@
 /* Resident hardware services; software rendering and allocation stay in the EDL. */
 EDL_GINT_SYMBOL(gint)
+/* Fast native drawing and measurement; EDL guests must validate all
+   image dimensions, storage, and coordinates before invoking these. */
+EDL_GINT_SYMBOL(dsize)
+EDL_GINT_SYMBOL(dnsize)
+EDL_GINT_SYMBOL(dimage)
+EDL_GINT_SYMBOL(dsubimage)
+EDL_GINT_SYMBOL(dgetpixel)
+EDL_GINT_SYMBOL(dpixel)
+EDL_GINT_SYMBOL(dline)
+EDL_GINT_SYMBOL(dcircle)
+EDL_GINT_SYMBOL(dellipse)
+EDL_GINT_SYMBOL(dhline)
+EDL_GINT_SYMBOL(dvline)
+EDL_GINT_SYMBOL(dwindow_set)
+EDL_GINT_SYMBOL(keycode_digit)
+EDL_GINT_SYMBOL(keycode_function)
 EDL_GINT_SYMBOL(r61523_display)
 EDL_GINT_SYMBOL(r61523_display_rect)
 EDL_GINT_SYMBOL(touch_exword_quit)
