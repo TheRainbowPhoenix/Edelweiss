@@ -6,9 +6,9 @@
 
 /* All file I/O remains in the native OS world; this cache only reduces
    repeated small random reads during the ELF relocation passes. */
-#define EDL_READ_CACHE_BLOCK 2048u
-/* Keep metadata, relocations, symbols and text hot across both ELF passes.
-   The old four slots thrashed on the 3,160-relocation MicroQuickJS ELF. */
+#define EDL_READ_CACHE_BLOCK 1024u
+/* Keep the SAME total 8 KiB resident BSS budget as the original 2 KiB x 4 cache.
+   Eight 1 KiB slots better retain separate ELF sections during relocation. */
 #define EDL_READ_CACHE_SLOTS 8u
 
 struct edl_read_cache_slot
