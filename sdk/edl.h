@@ -6,6 +6,19 @@
 #define EDL_ABI_MAGIC 0x45444c31u
 #define EDL_ABI_VERSION 1
 #define EDL_PATH_MAX 256
+/* Local, read-only bulk-directory service for standalone EDL payloads.
+   This is an Edelweiss-host extension to os_call, NOT a native firmware ID.
+   A native findfirst/findnext/findclose search remains inside ONE OS-world
+   switch so its search handle never escapes the native filesystem world.
+   No change to the EDL_ABI_VERSION=1 structure offsets. */
+#define EDL_OS_BULK_LIST 0x45444c46u /* 'EDLF' */
+#define EDL_OS_FILE_SIZE 0x45444c5au /* 'EDLZ' */
+struct edl_dirent
+{
+    char name[128];
+    int32_t directory;
+};
+
 #define EDL_TITLE_MAX 32
 #define EDL_ICON_SIZE 32
 #define EDL_EXIT 0
