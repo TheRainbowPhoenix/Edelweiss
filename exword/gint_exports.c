@@ -1,5 +1,7 @@
 #include "host.h"
 #include <gint/gint.h>
+#include <gint/display.h>
+#include <gint/image.h>
 #include <gint/hardware.h>
 #include <gint/cpu.h>
 #include <gint/clock.h>
