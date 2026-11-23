@@ -42,6 +42,19 @@ int main(void)
         assert(!edl_read_cache_read(&cache, i, buffer, n));
         assert(!memcmp(buffer, source + i, n));
     }
+    /* A relocation pass reads more than four hot 2 KiB regions:
+       .rela.text, .symtab, .text and .shstrtab. Eight slots must avoid
+       repeated OS reads when six regions are revisited. */
+    edl_read_cache_init(&cache, upstream, NULL, sizeof source);
+    reads = 0;
+    for (unsigned loop = 0; loop < 30; loop++)
+        for (unsigned i = 0; i < 6; i++)
+        {
+            unsigned at = i * EDL_READ_CACHE_BLOCK + 25;
+            assert(!edl_read_cache_read(&cache, at, buffer, 8));
+            assert(!memcmp(buffer, source + at, 8));
+        }
+    assert(reads == 6); /* Four cache slots would require 180 reads. */
     assert(edl_read_cache_read(&cache, sizeof source - 2, buffer, 3) < 0);
     assert(edl_read_cache_read(&cache, UINT32_MAX, buffer, 2) < 0);
     assert(edl_read_cache_read(&cache, 0, NULL, 1) < 0);
