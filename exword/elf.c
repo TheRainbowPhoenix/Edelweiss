@@ -253,10 +253,19 @@ static int relocate(struct relocation *r, int apply)
             if (index >= u32(symbols + 20) / 16 ||
                 r->read(r->rctx, u32(symbols + 16) + index * 16, sym, sizeof sym) || address & 3 ||
                 address < u32(target + 12) ||
-                !within(address - u32(target + 12), 4, u32(target + 20)) ||
-                file_word(r, address, &offset) || r->read(r->rctx, offset, word, 4))
+                !within(address - u32(target + 12), 4, u32(target + 20)))
                 return -1;
             unsigned shndx = u16(sym + 14);
+            /* All relocation destinations and symbols were checked in the
+               first (write-free) pass. If load address equals link address,
+               internal and fixed-absolute references already contain their
+               final values: do not reread the ELF target word or write it.
+               Imported zero-valued SHN_ABS services DO need a binding. */
+            if (apply && !r->delta &&
+                !(shndx == 0xfff1 && r->imports && !u32(sym + 4)))
+                continue;
+            if (file_word(r, address, &offset) || r->read(r->rctx, offset, word, 4))
+                return -1;
             int moves = 0;
             uint32_t binding = 0;
             if (shndx == 0xfff1)
