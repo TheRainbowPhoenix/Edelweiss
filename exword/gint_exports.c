@@ -1,5 +1,7 @@
 #include "host.h"
 #include <gint/gint.h>
+#include <gint/display.h>
+#include <gint/image.h>
 #include <gint/hardware.h>
 #include <gint/cpu.h>
 #include <gint/clock.h>
@@ -42,6 +44,19 @@ static const struct binding bindings[] = {
 int edl_resolve_gint(void *ctx, const char *name, uint32_t *address)
 {
     (void)ctx;
+    /* Explicit hosted-only ABI aliases. There are no same-name functions
+       in libgint-edl, so a payload cannot accidentally link its own
+       graphics stack instead of calling the active resident's VRAM. */
+    if (!strcmp(name, "_edl_native_dsubimage"))
+    {
+        *address = (uint32_t)(uintptr_t)&dsubimage;
+        return 0;
+    }
+    if (!strcmp(name, "_edl_native_dgetpixel"))
+    {
+        *address = (uint32_t)(uintptr_t)&dgetpixel;
+        return 0;
+    }
     if (!strcmp(name, "_timer_configure"))
     {
         *address = (uintptr_t)payload_timer_configure;
