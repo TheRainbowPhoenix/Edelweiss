@@ -24,18 +24,18 @@ int main(void)
     static struct edl_read_cache cache;
     edl_read_cache_init(&cache, upstream, NULL, sizeof source);
     uint8_t buffer[4097];
-    /* Thousands of small relocation reads within one 2 KiB block must
+    /* Thousands of small relocation reads within one 1 KiB block must
        be served by one native read, not thousands of OS seeks. */
     for (unsigned i = 0; i < 2000; i++)
     {
-        unsigned at = 400 + i % 1000;
+        unsigned at = 400 + i % 500;
         assert(!edl_read_cache_read(&cache, at, buffer, 9));
         assert(!memcmp(buffer, source + at, 9));
     }
     assert(reads == 1);
     assert(!edl_read_cache_read(&cache, 2035, buffer, sizeof buffer));
     assert(!memcmp(buffer, source + 2035, sizeof buffer));
-    assert(reads <= 4);
+    assert(reads <= 6);
     for (unsigned i = 0; i < sizeof source; i += 37)
     {
         unsigned n = sizeof source - i < sizeof buffer ? sizeof source - i : sizeof buffer;
