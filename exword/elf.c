@@ -261,8 +261,7 @@ static int relocate(struct relocation *r, int apply)
                internal and fixed-absolute references already contain their
                final values: do not reread the ELF target word or write it.
                Imported zero-valued SHN_ABS services DO need a binding. */
-            if (apply && !r->delta &&
-                !(shndx == 0xfff1 && r->imports && !u32(sym + 4)))
+            if (apply && !r->delta && !(shndx == 0xfff1 && r->imports && !u32(sym + 4)))
                 continue;
             if (file_word(r, address, &offset) || r->read(r->rctx, offset, word, 4))
                 return -1;
